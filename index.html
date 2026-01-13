@@ -2,12 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>行政書士試験 攻略ナビ</title>
     <style>
         :root {
             --primary: #2c3e50;
             --accent: #e67e22;
+            --danger: #e74c3c;
+            --info: #3498db;
             --bg: #f5f6fa;
             --card-bg: #ffffff;
             --text: #333;
@@ -19,10 +21,10 @@
             margin: 0;
             padding: 20px;
             line-height: 1.6;
+            -webkit-text-size-adjust: 100%;
         }
-        h1 { text-align: center; color: var(--primary); font-size: 1.5rem; }
+        h1 { text-align: center; color: var(--primary); font-size: 1.5rem; margin-bottom: 20px; }
         
-        /* コントロールエリア */
         .controls {
             background: var(--card-bg);
             padding: 15px;
@@ -33,24 +35,41 @@
             flex-direction: column;
             gap: 10px;
         }
-        select, button {
+        
+        /* 16pxフォントでズーム防止 */
+        input, select, button {
             padding: 10px;
-            font-size: 1rem;
+            font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 5px;
+            box-sizing: border-box;
         }
+
         button {
             background-color: var(--primary);
             color: white;
             border: none;
             cursor: pointer;
             font-weight: bold;
+            transition: opacity 0.2s;
         }
         button:hover { opacity: 0.9; }
+        
+        /* ボタンの色分け */
+        .btn-review { background-color: var(--danger); }
+        .btn-break { background-color: var(--info); } /* 息抜きボタン */
+        .btn-speak { 
+            background-color: transparent; 
+            color: var(--accent); 
+            border: 1px solid var(--accent);
+            padding: 5px 10px;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+        
         .mode-switch {
             display: flex;
             gap: 10px;
-            margin-bottom: 10px;
         }
         .mode-btn {
             flex: 1;
@@ -62,25 +81,21 @@
             color: white;
         }
 
-        /* コンテンツエリア */
-        #content-area {
-            display: grid;
-            gap: 15px;
-        }
+        #content-area { display: grid; gap: 15px; }
 
-        /* カードデザイン（用語・問題共通） */
         .card {
             background: var(--card-bg);
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border-left: 5px solid var(--primary);
+            position: relative;
         }
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
         .subject-badge {
             font-size: 0.8rem;
@@ -89,22 +104,43 @@
             border-radius: 4px;
             color: #666;
         }
+        
+        .review-check {
+            font-size: 0.9rem;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid #ddd;
+            padding: 2px 8px;
+            border-radius: 15px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .review-check.checked {
+            color: var(--danger);
+            border-color: var(--danger);
+            background-color: #fff0f0;
+            font-weight: bold;
+        }
+        
         .term-title {
             font-weight: bold;
             font-size: 1.2rem;
             color: var(--primary);
+            display: flex;
+            align-items: center;
         }
         .legal-detail {
             margin-top: 10px;
             padding: 10px;
-            background: #fff3cd; /* 判例・条文は目立つ色で */
+            background: #fff3cd;
             border-radius: 5px;
             font-size: 0.9rem;
-            display: none; /* デフォルト非表示 */
+            display: none;
         }
         .legal-detail.show { display: block; }
         
-        /* 過去問用スタイル */
         .quiz-options button {
             display: block;
             width: 100%;
@@ -119,6 +155,36 @@
         .correct { color: #27ae60; }
         .incorrect { color: #c0392b; }
 
+        /* お供ガチャのポップアップ */
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+        #modal-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+            animation: popIn 0.3s ease;
+        }
+        #companion-result {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin: 20px 0;
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
     </style>
 </head>
 <body>
@@ -126,204 +192,344 @@
     <h1>行政書士 合格パスポート</h1>
 
     <div class="controls">
-        <div class="mode-switch">
+        <button class="btn-break" onclick="showCompanion()">☕️ 今日の勉強のお供を決める</button>
+
+        <div class="mode-switch" style="margin-top:10px;">
             <button class="mode-btn active" onclick="setMode('dictionary')">用語辞典</button>
             <button class="mode-btn" onclick="setMode('quiz')">過去問演習</button>
         </div>
 
-        <select id="subject-select" onchange="refreshContent()">
-            <option value="all">全科目</option>
-            <option value="憲法">憲法</option>
-            <option value="民法">民法</option>
-            <option value="行政法">行政法</option>
-            <option value="商法・会社法">商法・会社法</option>
-            <option value="基礎法学">基礎法学</option>
-        </select>
-
-        <div id="quiz-settings" style="display:none;">
-            <select id="quiz-count">
-                <option value="1">1問 出題</option>
-                <option value="3">3問 出題</option>
-                <option value="5">5問 出題</option>
+        <div id="dict-controls">
+            <select id="subject-select-dict" onchange="refreshDict()" style="width:100%; margin-top:10px;">
+                <option value="all">全科目</option>
+                <option value="憲法">憲法</option>
+                <option value="民法">民法</option>
+                <option value="行政法">行政法</option>
+                <option value="商法・会社法">商法・会社法</option>
+                <option value="基礎法学">基礎法学</option>
             </select>
-            <button onclick="startQuiz()">出題スタート</button>
+            <input type="text" id="search-box" placeholder="用語を検索..." style="width: 100%; margin-top:10px;" oninput="refreshDict()">
         </div>
-        
-        <div id="dict-settings">
-            <input type="text" id="search-box" placeholder="用語を検索..." style="width: 90%; padding: 10px;" oninput="refreshContent()">
+
+        <div id="quiz-controls" style="display:none;">
+            <select id="subject-select-quiz" style="width:100%; margin-top:10px;">
+                <option value="all">全科目</option>
+                <option value="憲法">憲法</option>
+                <option value="民法">民法</option>
+                <option value="行政法">行政法</option>
+                <option value="商法・会社法">商法・会社法</option>
+                <option value="基礎法学">基礎法学</option>
+            </select>
+            
+            <div style="display:flex; gap:5px; margin-top:10px;">
+                <select id="quiz-count" style="flex:1;">
+                    <option value="1">1問</option>
+                    <option value="3">3問</option>
+                    <option value="5">5問</option>
+                    <option value="10">10問</option>
+                </select>
+                <button onclick="startQuiz('normal')" style="flex:2;">出題スタート</button>
+            </div>
+            
+            <button onclick="startQuiz('review')" class="btn-review" style="width:100%; margin-top:10px;">
+                🔥 苦手な問題だけ復習 (<span id="review-count">0</span>問)
+            </button>
         </div>
     </div>
 
-    <div id="content-area">
+    <div id="content-area"></div>
+
+    <div id="modal-overlay" onclick="closeModal()">
+        <div id="modal-box" onclick="event.stopPropagation()">
+            <h3>今日のお供は...</h3>
+            <div id="companion-result"></div>
+            <p style="font-size:0.9rem; color:#666;">これを用意して頑張ろう！</p>
+            <button onclick="closeModal()">OK</button>
         </div>
+    </div>
 
 <script>
-// データを入れる箱を空っぽで用意しておく
+// ==========================================
+// 1. データ管理 & 初期化
+// ==========================================
 let termsData = [];
 let quizData = [];
+let weakPointIds = [];
 
-// 起動時にJSONファイルを読み込みに行く関数
+// お供リスト
+const companions = [
+    "ホットミルク 🥛",
+    "コーヒー ☕️",
+    "ココア 🍫",
+    "アイスティー 🍹",
+    "グレープフルーツ 🍊",
+    "チョコレート 🍫",
+    "クラシック音楽（シューベルト） 🎻",
+    "ハーブのお香 🌿",
+    "おにぎり 🍙",
+    "ラジオ 📻",
+    "深呼吸 3回 😮‍💨",
+    "軽いストレッチ 🙆"
+];
+
+function loadWeakPoints() {
+    const saved = localStorage.getItem('gyosei_weak_points');
+    if (saved) {
+        weakPointIds = JSON.parse(saved);
+    }
+    updateReviewCount();
+}
+
+function saveWeakPoints() {
+    localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
+    updateReviewCount();
+}
+
+function updateReviewCount() {
+    const btnSpan = document.getElementById('review-count');
+    if(btnSpan) btnSpan.textContent = weakPointIds.length;
+}
+
 async function loadData() {
     try {
-        // terms.json を読み込む
         const resTerms = await fetch('./terms.json');
         termsData = await resTerms.json();
-
-        // quiz.json を読み込む
         const resQuiz = await fetch('./quiz.json');
         quizData = await resQuiz.json();
 
-        // 読み込み終わったら画面を更新
-        refreshContent();
-        console.log("データ読み込み完了！");
-        
+        loadWeakPoints();
+        refreshDict();
+        console.log("データ読み込み完了");
     } catch (error) {
-        console.error("データの読み込みに失敗しました:", error);
-        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。通信環境を確認してください。</p>';
+        console.error("読み込みエラー:", error);
+        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。</p>';
     }
 }
 
-// 画面が開いたタイミングでデータを読みに行く
 window.addEventListener('DOMContentLoaded', loadData);
 
-// ...（ここから下のアプリロジックはほぼそのままでOK）
+// ==========================================
+// 2. モード切替 & ガチャ機能
+// ==========================================
+let currentMode = 'dictionary';
 
-    // ==========================================
-    // アプリロジック
-    // ==========================================
+function setMode(mode) {
+    currentMode = mode;
+    const btns = document.querySelectorAll('.mode-btn');
+    const dictCtrl = document.getElementById('dict-controls');
+    const quizCtrl = document.getElementById('quiz-controls');
+    const container = document.getElementById('content-area');
 
-    let currentMode = 'dictionary'; // 'dictionary' or 'quiz'
+    if(mode === 'dictionary') {
+        btns[0].classList.add('active');
+        btns[1].classList.remove('active');
+        dictCtrl.style.display = 'block';
+        quizCtrl.style.display = 'none';
+        refreshDict();
+    } else {
+        btns[0].classList.remove('active');
+        btns[1].classList.add('active');
+        dictCtrl.style.display = 'none';
+        quizCtrl.style.display = 'block';
+        container.innerHTML = '<p style="text-align:center; color:#666;">条件を選んでスタートしてください。</p>';
+        updateReviewCount();
+    }
+}
 
-    function setMode(mode) {
-        currentMode = mode;
-        
-        // ボタンの見た目切り替え
-        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-        if(mode === 'dictionary') {
-            document.querySelectorAll('.mode-btn')[0].classList.add('active');
-            document.getElementById('dict-settings').style.display = 'block';
-            document.getElementById('quiz-settings').style.display = 'none';
-            refreshContent();
-        } else {
-            document.querySelectorAll('.mode-btn')[1].classList.add('active');
-            document.getElementById('dict-settings').style.display = 'none';
-            document.getElementById('quiz-settings').style.display = 'block';
-            document.getElementById('content-area').innerHTML = '<p style="text-align:center; color:#666;">出題数を選んで「スタート」を押してください。</p>';
-        }
+// お供ガチャロジック
+function showCompanion() {
+    const result = companions[Math.floor(Math.random() * companions.length)];
+    document.getElementById('companion-result').textContent = result;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+}
+
+// ==========================================
+// 3. 読み上げ機能 (Text-to-Speech)
+// ==========================================
+function speakText(text) {
+    // 既に喋っていたら止める
+    window.speechSynthesis.cancel();
+
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = "ja-JP"; // 日本語設定
+    uttr.rate = 1.0; // 速度
+    window.speechSynthesis.speak(uttr);
+}
+
+
+// ==========================================
+// 4. 用語辞典 (Dictionary) 機能
+// ==========================================
+function refreshDict() {
+    const subject = document.getElementById('subject-select-dict').value;
+    const keyword = document.getElementById('search-box').value.toLowerCase();
+    const container = document.getElementById('content-area');
+    container.innerHTML = '';
+
+    const filtered = termsData.filter(item => {
+        const matchSubject = subject === 'all' || item.subject === subject;
+        const matchKey = item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword);
+        return matchSubject && matchKey;
+    });
+
+    if(filtered.length === 0) {
+        container.innerHTML = '<p>該当する用語が見つかりません。</p>';
+        return;
     }
 
-    // 用語辞典の描画
-    function refreshContent() {
-        if(currentMode !== 'dictionary') return;
+    filtered.forEach(item => {
+        let detailHtml = '';
+        if (item.detail) {
+            detailHtml = `
+                <div class="legal-detail show">
+                    <strong>【条文】</strong> ${item.detail.article}<br>
+                    <strong>【判例等】</strong> ${item.detail.case}
+                </div>
+            `;
+        }
+        
+        // 読み上げ用テキスト作成
+        const speakContent = `${item.term}。${item.desc}`;
 
-        const subject = document.getElementById('subject-select').value;
-        const keyword = document.getElementById('search-box').value.toLowerCase();
-        const container = document.getElementById('content-area');
-        container.innerHTML = '';
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="subject-badge">${item.subject}</span>
+                <button class="btn-speak" onclick="speakText('${speakContent}')">🔊 聴く</button>
+            </div>
+            <div class="term-title">${item.term}</div>
+            <p>${item.desc}</p>
+            ${detailHtml}
+        `;
+        container.appendChild(card);
+    });
+}
 
-        const filtered = termsData.filter(item => {
-            const matchSubject = subject === 'all' || item.subject === subject;
-            const matchKey = item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword);
-            return matchSubject && matchKey;
-        });
 
-        if(filtered.length === 0) {
-            container.innerHTML = '<p>該当する用語が見つかりません。</p>';
+// ==========================================
+// 5. クイズ (Quiz) 機能
+// ==========================================
+function startQuiz(type) {
+    const container = document.getElementById('content-area');
+    container.innerHTML = '';
+    let candidates = [];
+
+    if (type === 'review') {
+        if (weakPointIds.length === 0) {
+            container.innerHTML = '<p style="text-align:center;">現在、復習リストは空です！<br>優秀ですね！👏</p>';
             return;
         }
-
-        filtered.forEach(item => {
-            let detailHtml = '';
-            // 詳細データがあり、かつ特定の科目なら条文・判例を表示
-            if (item.detail) {
-                detailHtml = `
-                    <div class="legal-detail show">
-                        <strong>【条文】</strong> ${item.detail.article}<br>
-                        <strong>【判例等】</strong> ${item.detail.case}
-                    </div>
-                `;
-            }
-
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="subject-badge">${item.subject}</span>
-                </div>
-                <div class="term-title">${item.term}</div>
-                <p>${item.desc}</p>
-                ${detailHtml}
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    // クイズ出題ロジック
-    function startQuiz() {
-        const subject = document.getElementById('subject-select').value;
+        candidates = quizData.filter(q => weakPointIds.includes(q.id));
+        const title = document.createElement('h3');
+        title.style.textAlign = 'center';
+        title.style.color = 'var(--danger)';
+        title.textContent = `🔥 苦手克服モード (${candidates.length}問)`;
+        container.appendChild(title);
+    } else {
+        const subject = document.getElementById('subject-select-quiz').value;
         const count = parseInt(document.getElementById('quiz-count').value);
-        const container = document.getElementById('content-area');
-        container.innerHTML = '';
-
-        // 科目でフィルタリング
-        let candidates = quizData.filter(q => subject === 'all' || q.subject === subject);
-        
-        // ランダムにシャッフルして指定数取得
+        candidates = quizData.filter(q => subject === 'all' || q.subject === subject);
         candidates = candidates.sort(() => Math.random() - 0.5).slice(0, count);
 
         if(candidates.length === 0) {
-            container.innerHTML = '<p>条件に合う過去問がありません。</p>';
+            container.innerHTML = '<p>条件に合う問題がありません。</p>';
             return;
         }
-
-        candidates.forEach((q, index) => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            
-            let optionsHtml = '';
-            q.options.forEach((opt, idx) => {
-                optionsHtml += `<button onclick="checkAnswer(this, ${q.id}, ${idx})">${idx + 1}. ${opt}</button>`;
-            });
-
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="subject-badge">第${index + 1}問 (${q.subject})</span>
-                </div>
-                <p style="font-weight:bold;">${q.question}</p>
-                <div class="quiz-options" id="options-${q.id}">
-                    ${optionsHtml}
-                </div>
-                <div class="result-msg" id="result-${q.id}"></div>
-            `;
-            container.appendChild(card);
-        });
     }
 
-    // 正誤判定
-    function checkAnswer(btn, qId, userIdx) {
-        const qData = quizData.find(q => q.id === qId);
-        const resultDiv = document.getElementById(`result-${qId}`);
-        const parent = document.getElementById(`options-${qId}`);
+    candidates.forEach((q, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
         
-        // ボタンを無効化（連打防止）
-        const buttons = parent.querySelectorAll('button');
-        buttons.forEach(b => b.disabled = true);
+        let optionsHtml = '';
+        q.options.forEach((opt, idx) => {
+            optionsHtml += `<button onclick="checkAnswer(this, ${q.id}, ${idx})">${idx + 1}. ${opt}</button>`;
+        });
 
-        if(userIdx === qData.answer) {
-            btn.style.background = '#d4edda';
-            btn.style.borderColor = '#c3e6cb';
-            resultDiv.innerHTML = `<span class="correct">正解！</span><br>${qData.explanation}`;
-        } else {
-            btn.style.background = '#f8d7da';
-            btn.style.borderColor = '#f5c6cb';
-            // 正解のボタンを強調表示
-            buttons[qData.answer].style.background = '#d4edda';
-            resultDiv.innerHTML = `<span class="incorrect">不正解...</span><br>${qData.explanation}`;
-        }
+        const isWeak = weakPointIds.includes(q.id);
+        const checkClass = isWeak ? 'review-check checked' : 'review-check';
+        const checkText = isWeak ? '✔ 復習リスト入り' : '復習リストに追加';
+
+        // 読み上げ用テキスト
+        const speakContent = `第${index + 1}問。${q.question}`;
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="subject-badge">第${index + 1}問 (${q.subject})</span>
+                <span class="${checkClass}" id="check-${q.id}" onclick="toggleWeakPoint(${q.id})">
+                    ${checkText}
+                </span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <p style="font-weight:bold; width:80%;">${q.question}</p>
+                <button class="btn-speak" onclick="speakText('${speakContent}')">🔊</button>
+            </div>
+            <div class="quiz-options" id="options-${q.id}">
+                ${optionsHtml}
+            </div>
+            <div class="result-msg" id="result-${q.id}"></div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function checkAnswer(btn, qId, userIdx) {
+    const qData = quizData.find(q => q.id === qId);
+    const resultDiv = document.getElementById(`result-${qId}`);
+    const parent = document.getElementById(`options-${qId}`);
+    parent.querySelectorAll('button').forEach(b => b.disabled = true);
+
+    if(userIdx === qData.answer) {
+        btn.style.background = '#d4edda';
+        btn.style.borderColor = '#c3e6cb';
+        resultDiv.innerHTML = `<span class="correct">正解！⭕️</span><br>${qData.explanation}`;
+        // 正解時の読み上げ（解説を読む）
+        // speakText("正解です。" + qData.explanation.replace(/<br>/g, '')); 
+        // ↑※ウザいかもしれないので、自動読み上げは一旦OFFにしています
+    } else {
+        btn.style.background = '#f8d7da';
+        btn.style.borderColor = '#f5c6cb';
+        parent.querySelectorAll('button')[qData.answer].style.background = '#d4edda';
+        resultDiv.innerHTML = `<span class="incorrect">残念...❌</span><br>${qData.explanation}`;
+        addWeakPoint(qId);
     }
+}
 
-    // 初期表示
-    refreshContent();
+// 復習リスト管理
+function addWeakPoint(id) {
+    if (!weakPointIds.includes(id)) {
+        weakPointIds.push(id);
+        saveWeakPoints();
+        updateCheckDisplay(id, true);
+    }
+}
+function toggleWeakPoint(id) {
+    if (weakPointIds.includes(id)) {
+        weakPointIds = weakPointIds.filter(wid => wid !== id);
+        updateCheckDisplay(id, false);
+    } else {
+        weakPointIds.push(id);
+        updateCheckDisplay(id, true);
+    }
+    saveWeakPoints();
+}
+function updateCheckDisplay(id, isActive) {
+    const el = document.getElementById(`check-${id}`);
+    if (!el) return;
+    if (isActive) {
+        el.className = 'review-check checked';
+        el.textContent = '✔ 復習リスト入り';
+    } else {
+        el.className = 'review-check';
+        el.textContent = '復習リストに追加';
+    }
+}
+
 </script>
 
 </body>
