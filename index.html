@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>行政書士試験 攻略ナビ</title>
+    <title>行政書士試験 攻略ナビ Pro</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -21,143 +21,148 @@
             color: var(--text);
             margin: 0;
             padding: 20px;
-            padding-bottom: 80px;
+            padding-bottom: 120px; /* プレイヤー用余白拡大 */
             line-height: 1.6;
             -webkit-text-size-adjust: 100%;
         }
         h1 { text-align: center; color: var(--primary); font-size: 1.5rem; margin-bottom: 20px; }
         
+        /* 共通UIパーツ */
         .controls {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            background: var(--card-bg); padding: 15px; border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px;
+            display: flex; flex-direction: column; gap: 10px;
         }
-        
         input, select, button {
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-sizing: border-box;
+            padding: 12px; font-size: 16px; border: 1px solid #ddd;
+            border-radius: 8px; box-sizing: border-box;
         }
-
         button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            transition: opacity 0.2s;
+            background-color: var(--primary); color: white; border: none;
+            cursor: pointer; font-weight: bold; transition: all 0.2s;
         }
-        button:hover { opacity: 0.9; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
         
+        /* ボタン色分け */
         .btn-review { background-color: var(--danger); }
         .btn-break { background-color: var(--info); }
         .btn-play-all { background-color: var(--success); }
-        .btn-stop { background-color: #7f8c8d; }
-
+        .btn-stop { 
+            background-color: #e74c3c; 
+            font-size: 1.2rem; 
+            padding: 15px 30px; /* 巨大化 */
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
         .btn-speak-icon {
             background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--accent); padding: 0;
         }
-        
+
+        /* モード切替タブ */
         .mode-switch { display: flex; gap: 10px; }
-        .mode-btn { flex: 1; background-color: #ddd; color: #555; }
-        .mode-btn.active { background-color: var(--accent); color: white; }
+        .mode-btn { flex: 1; background-color: #ddd; color: #555; border-radius: 8px 8px 0 0; border-bottom: none; }
+        .mode-btn.active { background-color: var(--primary); color: white; }
 
+        /* カードデザイン */
         #content-area { display: grid; gap: 15px; }
-
         .card {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-left: 5px solid var(--primary);
+            background: var(--card-bg); padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--primary);
             transition: background-color 0.3s;
         }
         .card.reading {
-            background-color: #fff9c4;
-            border-left: 5px solid var(--accent);
-            transform: scale(1.02);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background-color: #fff9c4; border-left-color: var(--accent);
+            transform: scale(1.02); box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .subject-badge { font-size: 0.8rem; background: #eee; padding: 2px 8px; border-radius: 4px; color: #666; }
         .term-title { font-weight: bold; font-size: 1.2rem; color: var(--primary); }
         
-        /* 条文本文のスタイル */
-        .law-text { font-family: "Hiragino Mincho ProN", serif; background: #fafafa; padding: 10px; border-radius: 5px; border: 1px dashed #ccc; margin: 10px 0; }
+        /* 条文リンク */
+        .law-link {
+            color: var(--info); text-decoration: underline; cursor: pointer; font-weight: bold;
+        }
+        .law-link:hover { color: var(--accent); }
+
+        /* 条文本文エリア */
+        .law-text { 
+            font-family: "Hiragino Mincho ProN", serif; background: #fafafa; 
+            padding: 10px; border-radius: 5px; border: 1px dashed #ccc; margin: 10px 0; 
+        }
 
         .legal-detail { margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9rem; display: none; }
         .legal-detail.show { display: block; }
-        
+
+        /* クイズ用 */
         .quiz-options button { display: block; width: 100%; margin-top: 5px; background: white; color: var(--text); border: 1px solid #ccc; text-align: left; }
         .result-msg { margin-top: 10px; font-weight: bold; }
         .correct { color: #27ae60; }
         .incorrect { color: #c0392b; }
 
+        /* プレイヤーバー（下部固定） */
         #audio-player-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            background: rgba(44, 62, 80, 0.95); color: white; padding: 10px 20px;
+            background: rgba(44, 62, 80, 0.95); color: white; padding: 15px 20px;
             display: none; align-items: center; justify-content: space-between;
             box-sizing: border-box; z-index: 1000; backdrop-filter: blur(5px);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         }
-        #audio-status { font-size: 0.9rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #audio-status { font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; }
 
-        #settings-overlay {
+        /* モーダル共通（設定 & 条文プレビュー） */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 999;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000;
         }
-        #settings-box {
-            background: white; padding: 20px; border-radius: 10px; width: 85%; max-width: 350px;
+        .modal-box {
+            background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: popIn 0.2s ease;
         }
-        .setting-row { margin-bottom: 15px; }
-        .setting-label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
-        input[type=range] { width: 100%; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .setting-row { margin-bottom: 20px; }
+        .setting-label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem; }
+        input[type=range] { width: 100%; height: 6px; }
 
     </style>
 </head>
 <body>
 
-    <h1>行政書士 合格パスポート</h1>
+    <h1>行政書士 攻略ナビ Pro</h1>
 
     <div class="controls">
         <div style="display:flex; gap:10px;">
             <button class="btn-break" style="flex:1;" onclick="showCompanion()">☕️ 息抜き</button>
-            <button class="btn-stop" style="flex:1;" onclick="openSettings()">⚙️ 音声設定</button>
+            <button style="flex:1; background:#7f8c8d;" onclick="openSettings()">⚙️ 音声設定</button>
         </div>
 
         <div class="mode-switch" style="margin-top:10px;">
-            <button class="mode-btn active" onclick="setMode('dictionary')">条文・用語検索</button>
+            <button class="mode-btn active" onclick="setMode('search')">辞書・条文検索</button>
             <button class="mode-btn" onclick="setMode('quiz')">過去問演習</button>
         </div>
 
-        <div id="dict-controls">
-            <select id="subject-select-dict" onchange="refreshDict()" style="width:100%; margin-top:10px;">
-                <option value="all">全科目</option>
-                <option value="憲法">憲法</option>
-                <option value="民法">民法</option>
-                <option value="行政法">行政法</option>
-                <option value="商法・会社法">商法・会社法</option>
+        <div id="search-controls">
+            <select id="search-target" onchange="refreshSearch()" style="width:100%; margin-top:10px; font-weight:bold;">
+                <option value="minpo-term">民法：用語</option>
+                <option value="gyosei-term">行政法：用語</option>
+                <option value="minpo-law">民法：条文 (例: 94, 95)</option>
+                <option value="gyosei-law">行政法：条文 (例: 2)</option>
             </select>
-            <input type="text" id="search-box" placeholder="例: 94, 民法177, 詐欺..." style="width: 100%; margin-top:10px;" oninput="refreshDict()">
+
+            <input type="text" id="search-box" placeholder="キーワードを入力..." style="width: 100%; margin-top:10px;" oninput="refreshSearch()">
             
             <button class="btn-play-all" onclick="startAutoPlay()" style="width:100%; margin-top:10px;">
-                ▶️ リストを連続読み上げ (耳勉)
+                ▶️ 検索結果を連続読み上げ
             </button>
         </div>
 
         <div id="quiz-controls" style="display:none;">
             <select id="subject-select-quiz" style="width:100%; margin-top:10px;">
                 <option value="all">全科目</option>
-                <option value="憲法">憲法</option>
                 <option value="民法">民法</option>
                 <option value="行政法">行政法</option>
+                <option value="憲法">憲法</option>
             </select>
             <div style="display:flex; gap:5px; margin-top:10px;">
                 <select id="quiz-count" style="flex:1;">
@@ -177,55 +182,57 @@
 
     <div id="audio-player-bar">
         <span id="audio-status">再生中...</span>
-        <button onclick="stopAutoPlay()" style="background:#e74c3c; padding:5px 15px; font-size:0.9rem;">停止</button>
+        <button class="btn-stop" onclick="stopAutoPlay()">停止 ■</button>
     </div>
 
-    <div id="settings-overlay" onclick="closeSettings()">
-        <div id="settings-box" onclick="event.stopPropagation()">
+    <div id="settings-overlay" class="modal-overlay" onclick="closeModal('settings-overlay')">
+        <div id="settings-box" class="modal-box" onclick="event.stopPropagation()">
             <h3 style="text-align:center; margin-top:0;">音声設定</h3>
             <div class="setting-row">
                 <label class="setting-label">声の種類</label>
-                <select id="voice-select" onchange="testVoice()"></select>
+                <select id="voice-select" onchange="saveVoiceSettings()"></select>
             </div>
             <div class="setting-row">
                 <label class="setting-label">話す速さ: <span id="rate-val">1.0</span></label>
-                <input type="range" id="rate-range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettingsDisp()">
+                <input type="range" id="rate-range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettingsDisp(); saveVoiceSettings();">
             </div>
             <div class="setting-row">
                 <label class="setting-label">声の高さ: <span id="pitch-val">1.0</span></label>
-                <input type="range" id="pitch-range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettingsDisp()">
+                <input type="range" id="pitch-range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettingsDisp(); saveVoiceSettings();">
             </div>
             <div style="text-align:center;">
                 <button onclick="testVoice()" style="background:var(--info); margin-bottom:10px;">🗣 テスト再生</button><br>
-                <button onclick="closeSettings()">閉じる</button>
+                <button onclick="closeModal('settings-overlay')">閉じる</button>
             </div>
         </div>
     </div>
 
-    <script>
-        function showCompanion() {
-            const list = ["ホットミルク", "コーヒー", "ココア", "チョコ", "深呼吸", "おにぎり"];
-            alert("今日のお供: " + list[Math.floor(Math.random()*list.length)]);
-        }
-    </script>
+    <div id="law-modal-overlay" class="modal-overlay" onclick="closeModal('law-modal-overlay')">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="law-modal-title" style="color:var(--primary); margin-top:0;"></h3>
+            <div id="law-modal-content" class="law-text"></div>
+            <div style="text-align:center; margin-top:15px;">
+                <button onclick="closeModal('law-modal-overlay')">閉じる</button>
+            </div>
+        </div>
+    </div>
 
 <script>
 // ==========================================
-// 1. データ管理 (ファイル分割対応版)
+// 1. データ管理
 // ==========================================
 let termsData = [];
 let quizData = [];
-let articlesData = []; // ここに民法と行政法を合体させて入れます
+let articlesData = []; // 民法・行政法合体版
 let weakPointIds = [];
 
-// 読み上げ用の変数
+// 読み上げ状態
 let isAutoPlaying = false;
 let playQueue = [];
 let currentPlayIndex = 0;
 
 async function loadData() {
     try {
-        // 並列で全部読み込みにいく
         const [resTerms, resQuiz, resMinpo, resGyosei] = await Promise.all([
             fetch('./terms.json'),
             fetch('./quiz.json'),
@@ -236,75 +243,257 @@ async function loadData() {
         termsData = await resTerms.json();
         quizData = await resQuiz.json();
         
-        // 民法と行政法のJSONを読み込んで、一つのリストに合体させる！
+        // 条文データの結合
         const minpo = await resMinpo.json();
         const gyosei = await resGyosei.json();
-        articlesData = [...minpo, ...gyosei]; // 合体！
+        articlesData = [...minpo, ...gyosei];
 
-        const saved = localStorage.getItem('gyosei_weak_points');
-        if (saved) weakPointIds = JSON.parse(saved);
+        // 設定と苦手リスト読み込み
+        const savedWeak = localStorage.getItem('gyosei_weak_points');
+        if (savedWeak) weakPointIds = JSON.parse(savedWeak);
         updateReviewCount();
         
-        refreshDict();
-        loadVoices();
-        console.log("全データ読み込み完了！");
+        loadVoiceSettings(); // 音声設定の復元
+        loadVoices(); // ブラウザの声取得
+
+        // 初期表示
+        refreshSearch();
+        console.log("データ読み込み完了");
 
     } catch (error) {
-        console.error("読み込みエラー:", error);
-        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。JSONファイル(minpo.json, gyosei.json等)が正しく配置されているか確認してください。</p>';
+        console.error(error);
+        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。JSONファイルを確認してください。</p>';
     }
 }
 window.addEventListener('DOMContentLoaded', loadData);
 
 function updateReviewCount() {
-    const btnSpan = document.getElementById('review-count');
-    if(btnSpan) btnSpan.textContent = weakPointIds.length;
+    const el = document.getElementById('review-count');
+    if(el) el.textContent = weakPointIds.length;
 }
 
 // ==========================================
-// 2. 音声合成 (共通)
+// 2. 音声合成 & 設定保存
 // ==========================================
 let voices = [];
 const synth = window.speechSynthesis;
+
 function loadVoices() {
     voices = synth.getVoices();
     const select = document.getElementById('voice-select');
+    // 設定済みならそれを選択する
+    const savedName = localStorage.getItem('voice_name');
+    
     select.innerHTML = '';
     const jaVoices = voices.filter(v => v.lang.includes('ja') || v.lang.includes('JP'));
-    if(jaVoices.length === 0) select.innerHTML = '<option value="">標準音声</option>';
-    else jaVoices.forEach((v, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx; opt.textContent = v.name; select.appendChild(opt);
-    });
+    
+    if(jaVoices.length === 0) {
+        select.innerHTML = '<option value="">標準音声</option>';
+    } else {
+        jaVoices.forEach((v) => {
+            const opt = document.createElement('option');
+            opt.value = v.name;
+            opt.textContent = v.name;
+            if (v.name === savedName) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
 }
 synth.onvoiceschanged = loadVoices;
 
-function getVoiceSettings() {
+// 設定をローカルストレージに保存
+function saveVoiceSettings() {
     const rate = document.getElementById('rate-range').value;
     const pitch = document.getElementById('pitch-range').value;
-    const voiceIndex = document.getElementById('voice-select').selectedIndex;
-    const jaVoices = voices.filter(v => v.lang.includes('ja') || v.lang.includes('JP'));
-    return { rate, pitch, voice: jaVoices[voiceIndex] };
+    const voiceName = document.getElementById('voice-select').value;
+    
+    localStorage.setItem('voice_rate', rate);
+    localStorage.setItem('voice_pitch', pitch);
+    localStorage.setItem('voice_name', voiceName);
 }
+
+// 設定を読み出し
+function loadVoiceSettings() {
+    const rate = localStorage.getItem('voice_rate');
+    const pitch = localStorage.getItem('voice_pitch');
+    
+    if(rate) document.getElementById('rate-range').value = rate;
+    if(pitch) document.getElementById('pitch-range').value = pitch;
+    updateSettingsDisp();
+}
+
 function updateSettingsDisp() {
     document.getElementById('rate-val').textContent = document.getElementById('rate-range').value;
     document.getElementById('pitch-val').textContent = document.getElementById('pitch-range').value;
 }
+
 function speakText(text, onEndCallback) {
     synth.cancel();
-    const uttr = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, '')); 
-    const s = getVoiceSettings();
-    uttr.lang = "ja-JP"; uttr.rate = s.rate; uttr.pitch = s.pitch;
-    if(s.voice) uttr.voice = s.voice;
+    // HTMLタグ除去
+    const plainText = text.replace(/<[^>]*>/g, '');
+    const uttr = new SpeechSynthesisUtterance(plainText);
+    
+    const rate = document.getElementById('rate-range').value;
+    const pitch = document.getElementById('pitch-range').value;
+    const voiceName = document.getElementById('voice-select').value;
+    
+    uttr.lang = "ja-JP";
+    uttr.rate = rate;
+    uttr.pitch = pitch;
+    
+    const targetVoice = voices.find(v => v.name === voiceName);
+    if(targetVoice) uttr.voice = targetVoice;
+
     if (onEndCallback) uttr.onend = onEndCallback;
     synth.speak(uttr);
 }
+
 function openSettings() { document.getElementById('settings-overlay').style.display = 'flex'; }
-function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
-function testVoice() { speakText("テスト再生です。"); }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function testVoice() { speakText("設定を保存しました。この声で読み上げます。"); }
 
 // ==========================================
-// 3. 連続再生
+// 3. 検索機能 (ご要望の実装)
+// ==========================================
+let currentMode = 'search';
+
+function setMode(mode) {
+    currentMode = mode; stopAutoPlay();
+    const btns = document.querySelectorAll('.mode-btn');
+    const searchCtrl = document.getElementById('search-controls');
+    const quizCtrl = document.getElementById('quiz-controls');
+
+    if(mode === 'search') {
+        btns[0].classList.add('active'); btns[1].classList.remove('active');
+        searchCtrl.style.display = 'block'; quizCtrl.style.display = 'none';
+        refreshSearch();
+    } else {
+        btns[0].classList.remove('active'); btns[1].classList.add('active');
+        searchCtrl.style.display = 'none'; quizCtrl.style.display = 'block';
+        document.getElementById('content-area').innerHTML = '<p style="text-align:center;">条件を選んでスタート</p>';
+    }
+}
+
+function refreshSearch() {
+    const target = document.getElementById('search-target').value; // 選択されたモード
+    const rawKey = document.getElementById('search-box').value;
+    const container = document.getElementById('content-area');
+    container.innerHTML = '';
+
+    // ① 条文検索モード (minpo-law, gyosei-law)
+    if (target.includes('law')) {
+        const subjectFilter = target === 'minpo-law' ? '民法' : '行政'; // 行政手続法なども含むため
+        
+        // 入力文字を「区切り文字」で分割して配列にする
+        // 「、」「,」「.」「スペース」「と」で分割
+        const numbers = rawKey.split(/[、,.\sと]+/).filter(n => n.trim() !== "");
+
+        if (numbers.length === 0 && rawKey.trim() !== "") {
+            // 数字がない検索は無視（または全表示）だが、基本は数字待ち
+        }
+
+        const filtered = articlesData.filter(item => {
+            // 科目チェック
+            if (!item.subject.includes(subjectFilter)) return false;
+            
+            // 何も入力なければ全表示（または表示しない）→ ここでは全表示にする
+            if (numbers.length === 0) return true;
+
+            // 入力された数字のどれかと一致するか？
+            return numbers.includes(item.number);
+        });
+
+        if(filtered.length === 0) {
+            container.innerHTML = '<p>該当する条文が見つかりません。</p>';
+            return;
+        }
+
+        filtered.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="subject-badge">${item.subject} 第${item.number}条</span>
+                    <button class="btn-speak-icon" onclick="speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button>
+                </div>
+                <div class="term-title">第${item.number}条: ${item.title}</div>
+                <div class="law-text">${item.text}</div>
+            `;
+            container.appendChild(card);
+        });
+
+    } 
+    // ② 用語検索モード (minpo-term, gyosei-term)
+    else {
+        const subjectFilter = target === 'minpo-term' ? '民法' : '行政法';
+        const keyword = rawKey.toLowerCase();
+
+        const filtered = termsData.filter(item => {
+            const matchSubject = item.subject === subjectFilter;
+            const matchKey = item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword);
+            return matchSubject && matchKey;
+        });
+
+        if(filtered.length === 0) {
+            container.innerHTML = '<p>該当する用語が見つかりません。</p>';
+            return;
+        }
+
+        filtered.forEach(item => {
+            // ★重要：詳細情報の条文番号を「クリック可能なリンク」に変換する処理
+            let detailHtml = '';
+            if (item.detail) {
+                // 正規表現で「数字」を見つけて、onclickリンクに置換する
+                // 例: "109条" -> <span class="law-link" onclick="showLawModal('民法', '109')">109</span>条
+                const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => {
+                    return `<span class="law-link" onclick="showLawModal('${item.subject}', '${match}')">${match}</span>`;
+                });
+
+                detailHtml = `
+                    <div class="legal-detail show">
+                        <strong>【条文】</strong> ${linkedArticle}<br>
+                        <strong>【判例等】</strong> ${item.detail.case}
+                    </div>
+                `;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="subject-badge">${item.subject}</span>
+                    <button class="btn-speak-icon" onclick="speakText('${item.term}。${item.desc}')">🔈</button>
+                </div>
+                <div class="term-title">${item.term}</div>
+                <p>${item.desc}</p>
+                ${detailHtml}
+            `;
+            container.appendChild(card);
+        });
+    }
+}
+
+// ★モーダルで条文を表示する機能
+function showLawModal(subject, number) {
+    // 該当する条文を探す
+    const law = articlesData.find(item => item.subject.includes(subject) && item.number == number);
+    
+    const titleEl = document.getElementById('law-modal-title');
+    const contentEl = document.getElementById('law-modal-content');
+    
+    if (law) {
+        titleEl.textContent = `${law.subject} 第${law.number}条 ${law.title}`;
+        contentEl.innerHTML = law.text;
+    } else {
+        titleEl.textContent = "データなし";
+        contentEl.textContent = `申し訳ありません。${subject}${number}条のデータが見つかりませんでした。`;
+    }
+    
+    document.getElementById('law-modal-overlay').style.display = 'flex';
+}
+
+// ==========================================
+// 4. 連続再生 (オートプレイ)
 // ==========================================
 function startAutoPlay() {
     const cards = document.querySelectorAll('.card');
@@ -315,6 +504,7 @@ function startAutoPlay() {
     document.getElementById('audio-player-bar').style.display = 'flex';
     playNext();
 }
+
 function playNext() {
     if(!isAutoPlaying || currentPlayIndex >= playQueue.length) { stopAutoPlay(); return; }
     playQueue.forEach(c => c.classList.remove('reading'));
@@ -322,12 +512,15 @@ function playNext() {
     card.classList.add('reading');
     card.scrollIntoView({ behavior: "smooth", block: "center" });
 
+    // 読み上げテキスト抽出
     let text = "";
     if (card.querySelector('.law-text')) {
+        // 条文モード
         const title = card.querySelector('.term-title').textContent;
         const body = card.querySelector('.law-text').textContent;
         text = `${title}。${body}`;
     } else {
+        // 用語モード
         const term = card.querySelector('.term-title').textContent;
         const desc = card.querySelector('p').textContent;
         text = `${term}。${desc}`;
@@ -339,6 +532,7 @@ function playNext() {
         setTimeout(playNext, 1000);
     });
 }
+
 function stopAutoPlay() {
     isAutoPlaying = false; synth.cancel();
     document.getElementById('audio-player-bar').style.display = 'none';
@@ -346,90 +540,8 @@ function stopAutoPlay() {
 }
 
 // ==========================================
-// 4. 検索機能 (民法・行政法JSON対応版)
+// 5. クイズ機能 (変更なし)
 // ==========================================
-let currentMode = 'dictionary';
-function setMode(mode) {
-    currentMode = mode; stopAutoPlay();
-    const btns = document.querySelectorAll('.mode-btn');
-    if(mode === 'dictionary') {
-        btns[0].classList.add('active'); btns[1].classList.remove('active');
-        document.getElementById('dict-controls').style.display = 'block';
-        document.getElementById('quiz-controls').style.display = 'none';
-        refreshDict();
-    } else {
-        btns[0].classList.remove('active'); btns[1].classList.add('active');
-        document.getElementById('dict-controls').style.display = 'none';
-        document.getElementById('quiz-controls').style.display = 'block';
-        document.getElementById('content-area').innerHTML = '<p style="text-align:center;">条件を選んでスタート</p>';
-    }
-}
-
-function refreshDict() {
-    const subject = document.getElementById('subject-select-dict').value;
-    const rawKey = document.getElementById('search-box').value;
-    const keyword = rawKey.toLowerCase().trim();
-    const container = document.getElementById('content-area');
-    container.innerHTML = '';
-
-    // ① 条文検索 (数字が含まれていれば条文モードと判断)
-    const isLawSearch = /\d/.test(keyword); 
-
-    if (isLawSearch) {
-        // articlesData（民法と行政法の合体データ）から検索
-        const filteredLaws = articlesData.filter(item => {
-            const matchSubject = subject === 'all' || item.subject.includes(subject) || (subject === '行政法' && (item.subject === '行政手続法' || item.subject === '行政不服審査法'));
-            
-            // 科目名+条数 で検索できるようにする
-            const searchTarget = item.subject + item.number; 
-            return matchSubject && searchTarget.includes(keyword);
-        });
-
-        filteredLaws.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="subject-badge">${item.subject} 第${item.number}条</span>
-                    <button class="btn-speak-icon" onclick="speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button>
-                </div>
-                <div class="term-title">${item.subject} ${item.number}条: ${item.title}</div>
-                <div class="law-text">${item.text}</div>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    // ② 用語検索
-    const filteredTerms = termsData.filter(item => {
-        const matchSubject = subject === 'all' || item.subject === subject;
-        const matchKey = item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword);
-        return matchSubject && matchKey;
-    });
-
-    filteredTerms.forEach(item => {
-        let detailHtml = '';
-        if (item.detail) detailHtml = `<div class="legal-detail show"><strong>【条文】</strong> ${item.detail.article}<br><strong>【判例等】</strong> ${item.detail.case}</div>`;
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-            <div class="card-header">
-                <span class="subject-badge">${item.subject}</span>
-                <button class="btn-speak-icon" onclick="speakText('${item.term}。${item.desc}')">🔈</button>
-            </div>
-            <div class="term-title">${item.term}</div>
-            <p>${item.desc}</p>
-            ${detailHtml}
-        `;
-        container.appendChild(card);
-    });
-
-    if (container.innerHTML === '') {
-        container.innerHTML = '<p>該当する条文・用語が見つかりません。</p>';
-    }
-}
-
-// クイズ機能
 function startQuiz(type) {
     const container = document.getElementById('content-area'); container.innerHTML = '';
     let candidates = [];
@@ -464,6 +576,10 @@ function toggleWeakPoint(id, el) {
     if (weakPointIds.includes(id)) { weakPointIds = weakPointIds.filter(wid => wid !== id); el.textContent = '復習リストに追加'; el.style.color = '#888'; el.style.fontWeight = 'normal'; }
     else { weakPointIds.push(id); el.textContent = '✔ 復習リスト入り'; el.style.color = 'var(--danger)'; el.style.fontWeight = 'bold'; }
     localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
+}
+function showCompanion() {
+    const list = ["ホットミルク", "コーヒー", "ココア", "チョコ","ジャズミュージック","おせんべい", "ストレッチ", "おにぎり"];
+    alert("今日のお供: " + list[Math.floor(Math.random()*list.length)]);
 }
 </script>
 
