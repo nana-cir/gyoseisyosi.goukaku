@@ -233,11 +233,14 @@ let quizData = [];
 let articlesData = [];
 let weakPointIds = [];
 
-// 読み上げ・再生状態管理
+// 再生管理
 let isAutoPlaying = false;
 let playQueue = [];
 let currentPlayIndex = 0;
-let playCounter = 0; // 5回カウント用
+let playCounter = 0;
+
+// ★オーディオ管理（ここが修正点！）
+let audioCtx; // グローバル変数で保持
 
 async function loadData() {
     try {
@@ -390,15 +393,12 @@ function refreshSearch(forceAll = false) {
         const card = document.createElement('div'); card.className = 'card';
         card.setAttribute('onclick', 'playFromThisCard(this)');
         
-        // 共通パーツ生成
         let contentHtml = '';
-        let speakTextContent = '';
-        
-        if (item.number) { // 条文の場合
+        if (item.number) { 
             contentHtml = `
                 <div class="card-header"><span class="subject-badge">${item.subject} 第${item.number}条</span><button class="btn-speak-icon" onclick="event.stopPropagation(); speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button></div>
                 <div class="term-title">第${item.number}条: ${item.title}</div><div class="law-text">${item.text}</div>`;
-        } else { // 用語の場合
+        } else { 
             let detailHtml = '';
             if (item.detail) {
                 const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => `<span class="law-link" onclick="event.stopPropagation(); showLawModal('${item.subject}', '${match}')">${match}</span>`);
@@ -408,7 +408,6 @@ function refreshSearch(forceAll = false) {
                 <div class="card-header"><span class="subject-badge">${item.subject}</span><button class="btn-speak-icon" onclick="event.stopPropagation(); speakText('${item.term}。${item.desc}')">🔈</button></div>
                 <div class="term-title">${item.term}</div><p>${item.desc}</p>${detailHtml}`;
         }
-        
         card.innerHTML = contentHtml;
         container.appendChild(card);
     });
@@ -428,9 +427,33 @@ function showLawModal(subject, number) {
 }
 
 // ==========================================
-// 4. スマート連続再生 (休憩機能付き)
+// 4. スマート連続再生 (音出し許可対応版)
 // ==========================================
+
+// ★音声エンジンを初期化する関数（ユーザーのタップ時に呼ぶ）
+function initAudio() {
+    if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioCtx = new AudioContext();
+            
+            // 無音を一瞬再生して、スマホのオーディオロックを解除する
+            const buffer = audioCtx.createBuffer(1, 1, 22050);
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start(0);
+        }
+    }
+    // 中断されていたら再開させる（iOS対策）
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
 function startAutoPlay() {
+    initAudio(); // ★ここで音出し許可を取る！
+
     let cards = document.querySelectorAll('.card');
     if(cards.length === 0) {
         refreshSearch(true);
@@ -439,19 +462,20 @@ function startAutoPlay() {
     }
     playQueue = Array.from(cards);
     currentPlayIndex = 0;
-    playCounter = 0; // カウンタリセット
+    playCounter = 0;
     isAutoPlaying = true;
     document.getElementById('audio-player-bar').style.display = 'flex';
     playNext();
 }
 
 function playFromThisCard(cardEl) {
+    initAudio(); // ★ここでも音出し許可を取る！
+
     const cards = document.querySelectorAll('.card');
     playQueue = Array.from(cards);
     currentPlayIndex = playQueue.indexOf(cardEl);
     if (currentPlayIndex === -1) return;
     
-    // タップ再生時はカウントをリセットしてあげる（キリよくするため）
     playCounter = 0;
     isAutoPlaying = true;
     document.getElementById('audio-player-bar').style.display = 'flex';
@@ -459,73 +483,50 @@ function playFromThisCard(cardEl) {
     playNext();
 }
 
-// ★内蔵サウンド生成機能 (ファイル不要！)
+// チャイム再生（グローバルaudioCtxを使用）
 function playChime() {
-    // 癒やしの和音（Cメジャー）を生成
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        
-        const playTone = (freq, time, duration) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.frequency.value = freq;
-            osc.type = 'sine'; // 柔らかい音
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            gain.gain.setValueAtTime(0.1, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-            
-            osc.start(time);
-            osc.stop(time + duration);
-        };
+    if (!audioCtx) return;
 
-        const now = ctx.currentTime;
-        playTone(523.25, now, 1.5); // Do
-        playTone(659.25, now + 0.2, 1.5); // Mi
-        playTone(783.99, now + 0.4, 2.0); // So
+    const now = audioCtx.currentTime;
+    
+    const playTone = (freq, time, duration) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         
-    } catch(e) {
-        console.log("Audio API not supported");
-    }
+        gain.gain.setValueAtTime(0.1, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        
+        osc.start(time);
+        osc.stop(time + duration);
+    };
+
+    // ド・ミ・ソの和音
+    playTone(523.25, now, 1.5);
+    playTone(659.25, now + 0.2, 1.5);
+    playTone(783.99, now + 0.4, 2.0);
 }
 
 function playNext() {
     if(!isAutoPlaying || currentPlayIndex >= playQueue.length) { stopAutoPlay(); return; }
     
-    // 5回再生したら休憩するロジック
-    // 初回(0回目)は休憩しない & 5の倍数のときだけ休憩
+    // 5回ごとに休憩
     if (playCounter > 0 && playCounter % 5 === 0) {
-        // ステータス表示更新
         document.getElementById('audio-status').textContent = `☕️ 3秒リラックス中...`;
-        
-        // ハイライトを消す
         playQueue.forEach(c => c.classList.remove('reading'));
         
-        // チャイムを鳴らす
-        playChime();
+        playChime(); // ★ここで音が鳴るはず！
 
-        // 3秒待ってから再開
         setTimeout(() => {
-            if(!isAutoPlaying) return; // 待機中に停止されたら何もしない
-            playCounter++; // カウントを進めて次のループへ（休憩ループを抜ける）
-            playNext(); // 再帰呼び出し
-        }, 3000); // 3秒
-        
-        // ここで一旦処理を終える（休憩モードに入るため）
-        playCounter++; // 次回チェック回避のため1つ進めておくが、上のsetTimeoutでさらに進むので微調整
-        // シンプルにするため: playCounterをリセットせず、条件式を変える手もあるが
-        // ここでは「休憩に入った」のでreturnするだけでOK。
-        // ※修正: playCounter++ して return すると「6個目」の再生処理が行われない。
-        // 正しくは：
-        // 1. カウントが5になったら休憩に入る
-        // 2. 3秒後に「そのままのindex」でplayNextを呼ぶ（ただし休憩チェックを回避する必要がある）
+            if(!isAutoPlaying) return;
+            playCounter++; // ループ脱出用
+            playNext();
+        }, 3000);
         return; 
     }
-
-    // --- 通常再生フロー ---
 
     playQueue.forEach(c => c.classList.remove('reading'));
     const card = playQueue[currentPlayIndex];
@@ -547,8 +548,8 @@ function playNext() {
     
     speakText(text, () => {
         currentPlayIndex++;
-        playCounter++; // 読み終わったらカウントアップ
-        setTimeout(playNext, 1000); // 1秒間を空けて次へ
+        playCounter++;
+        setTimeout(playNext, 1000);
     });
 }
 
@@ -599,7 +600,7 @@ function toggleWeakPoint(id, el) {
 }
 function showCompanion() {
     const list = ["ホットミルク", "コーヒー", "ココア", "おせんべい","ジャズミュージック","アイスクリーム","キャラメル","チョコ", "お香","深呼吸", "おにぎり"];
-    alert("今日のがんばれ！お供: " + list[Math.floor(Math.random()*list.length)]);
+    alert("がんばれ！今日のお供: " + list[Math.floor(Math.random()*list.length)]);
 }
 </script>
 
