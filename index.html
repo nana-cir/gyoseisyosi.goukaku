@@ -239,8 +239,9 @@ let playQueue = [];
 let currentPlayIndex = 0;
 let playCounter = 0;
 
-// ★オーディオ管理（ここが修正点！）
-let audioCtx; // グローバル変数で保持
+// ★オーディオ管理（ここが重要！）
+// グローバル変数として定義し、ボタンクリック時に一度だけ作成・再利用する
+let audioCtx = null; 
 
 async function loadData() {
     try {
@@ -427,17 +428,17 @@ function showLawModal(subject, number) {
 }
 
 // ==========================================
-// 4. スマート連続再生 (音出し許可対応版)
+// 4. スマート連続再生 & オーディオエンジン
 // ==========================================
 
-// ★音声エンジンを初期化する関数（ユーザーのタップ時に呼ぶ）
+// ★初期化関数：ユーザーのタップ操作時に必ず呼ぶ
 function initAudio() {
     if (!audioCtx) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (AudioContext) {
             audioCtx = new AudioContext();
             
-            // 無音を一瞬再生して、スマホのオーディオロックを解除する
+            // 無音を一瞬再生して、スマホのオーディオロックを解除（Wake Up）
             const buffer = audioCtx.createBuffer(1, 1, 22050);
             const source = audioCtx.createBufferSource();
             source.buffer = buffer;
@@ -445,14 +446,45 @@ function initAudio() {
             source.start(0);
         }
     }
-    // 中断されていたら再開させる（iOS対策）
+    // サスペンド状態なら再開させる（iOS対策）
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
 }
 
+// チャイム再生（初期化済みのグローバルaudioCtxを使用）
+function playChime() {
+    if (!audioCtx) return;
+
+    // もしコンテキストが死んでたら蘇生を試みる
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    
+    const playTone = (freq, time, duration) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        // 音量コントロール（フェードアウト）
+        gain.gain.setValueAtTime(0.1, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        
+        osc.start(time);
+        osc.stop(time + duration);
+    };
+
+    // ド・ミ・ソの和音（ポーン♪）
+    playTone(523.25, now, 1.5);
+    playTone(659.25, now + 0.2, 1.5);
+    playTone(783.99, now + 0.4, 2.0);
+}
+
 function startAutoPlay() {
-    initAudio(); // ★ここで音出し許可を取る！
+    initAudio(); // ★ここで音出しの許可を取る
 
     let cards = document.querySelectorAll('.card');
     if(cards.length === 0) {
@@ -469,7 +501,7 @@ function startAutoPlay() {
 }
 
 function playFromThisCard(cardEl) {
-    initAudio(); // ★ここでも音出し許可を取る！
+    initAudio(); // ★ここでも音出しの許可を取る
 
     const cards = document.querySelectorAll('.card');
     playQueue = Array.from(cards);
@@ -483,33 +515,6 @@ function playFromThisCard(cardEl) {
     playNext();
 }
 
-// チャイム再生（グローバルaudioCtxを使用）
-function playChime() {
-    if (!audioCtx) return;
-
-    const now = audioCtx.currentTime;
-    
-    const playTone = (freq, time, duration) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = freq;
-        osc.type = 'sine';
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        gain.gain.setValueAtTime(0.1, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-        
-        osc.start(time);
-        osc.stop(time + duration);
-    };
-
-    // ド・ミ・ソの和音
-    playTone(523.25, now, 1.5);
-    playTone(659.25, now + 0.2, 1.5);
-    playTone(783.99, now + 0.4, 2.0);
-}
-
 function playNext() {
     if(!isAutoPlaying || currentPlayIndex >= playQueue.length) { stopAutoPlay(); return; }
     
@@ -518,7 +523,8 @@ function playNext() {
         document.getElementById('audio-status').textContent = `☕️ 3秒リラックス中...`;
         playQueue.forEach(c => c.classList.remove('reading'));
         
-        playChime(); // ★ここで音が鳴るはず！
+        // ★修正済み：作成済みのaudioCtxを使うのでエラーにならない
+        playChime(); 
 
         setTimeout(() => {
             if(!isAutoPlaying) return;
@@ -598,11 +604,12 @@ function toggleWeakPoint(id, el) {
     else { weakPointIds.push(id); el.textContent = '✔ 復習リスト入り'; el.style.color = 'var(--danger)'; el.style.fontWeight = 'bold'; }
     localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
 }
+
+// ==========================================
+// 6. 息抜き機能（おせんべい入りVer.）
+// ==========================================
 function showCompanion() {
     const list = ["ホットミルク", "コーヒー", "ココア", "おせんべい","ジャズミュージック","アイスクリーム","キャラメル","チョコ", "お香","深呼吸", "おにぎり"];
     alert("がんばれ！今日のお供: " + list[Math.floor(Math.random()*list.length)]);
 }
 </script>
-
-</body>
-</html>
