@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>行政書士試験 攻略ナビ Pro</title>
+    <title>行政書士 攻略ナビ Pro</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -21,7 +21,7 @@
             color: var(--text);
             margin: 0;
             padding: 20px;
-            padding-bottom: 120px; /* プレイヤー用余白拡大 */
+            padding-bottom: 120px;
             line-height: 1.6;
             -webkit-text-size-adjust: 100%;
         }
@@ -50,7 +50,7 @@
         .btn-stop { 
             background-color: #e74c3c; 
             font-size: 1.2rem; 
-            padding: 15px 30px; /* 巨大化 */
+            padding: 15px 30px;
             border-radius: 50px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
@@ -109,7 +109,7 @@
         }
         #audio-status { font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; }
 
-        /* モーダル共通（設定 & 条文プレビュー） */
+        /* モーダル共通 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000;
@@ -223,7 +223,7 @@
 // ==========================================
 let termsData = [];
 let quizData = [];
-let articlesData = []; // 民法・行政法合体版
+let articlesData = [];
 let weakPointIds = [];
 
 // 読み上げ状態
@@ -243,21 +243,18 @@ async function loadData() {
         termsData = await resTerms.json();
         quizData = await resQuiz.json();
         
-        // 条文データの結合
         const minpo = await resMinpo.json();
         const gyosei = await resGyosei.json();
         articlesData = [...minpo, ...gyosei];
 
-        // 設定と苦手リスト読み込み
         const savedWeak = localStorage.getItem('gyosei_weak_points');
         if (savedWeak) weakPointIds = JSON.parse(savedWeak);
         updateReviewCount();
         
-        loadVoiceSettings(); // 音声設定の復元
-        loadVoices(); // ブラウザの声取得
+        loadVoiceSettings(); 
+        loadVoices(); 
 
-        // 初期表示
-        refreshSearch();
+        refreshSearch(); // 初期表示（案内が出る）
         console.log("データ読み込み完了");
 
     } catch (error) {
@@ -281,7 +278,6 @@ const synth = window.speechSynthesis;
 function loadVoices() {
     voices = synth.getVoices();
     const select = document.getElementById('voice-select');
-    // 設定済みならそれを選択する
     const savedName = localStorage.getItem('voice_name');
     
     select.innerHTML = '';
@@ -301,22 +297,18 @@ function loadVoices() {
 }
 synth.onvoiceschanged = loadVoices;
 
-// 設定をローカルストレージに保存
 function saveVoiceSettings() {
     const rate = document.getElementById('rate-range').value;
     const pitch = document.getElementById('pitch-range').value;
     const voiceName = document.getElementById('voice-select').value;
-    
     localStorage.setItem('voice_rate', rate);
     localStorage.setItem('voice_pitch', pitch);
     localStorage.setItem('voice_name', voiceName);
 }
 
-// 設定を読み出し
 function loadVoiceSettings() {
     const rate = localStorage.getItem('voice_rate');
     const pitch = localStorage.getItem('voice_pitch');
-    
     if(rate) document.getElementById('rate-range').value = rate;
     if(pitch) document.getElementById('pitch-range').value = pitch;
     updateSettingsDisp();
@@ -329,7 +321,6 @@ function updateSettingsDisp() {
 
 function speakText(text, onEndCallback) {
     synth.cancel();
-    // HTMLタグ除去
     const plainText = text.replace(/<[^>]*>/g, '');
     const uttr = new SpeechSynthesisUtterance(plainText);
     
@@ -337,9 +328,7 @@ function speakText(text, onEndCallback) {
     const pitch = document.getElementById('pitch-range').value;
     const voiceName = document.getElementById('voice-select').value;
     
-    uttr.lang = "ja-JP";
-    uttr.rate = rate;
-    uttr.pitch = pitch;
+    uttr.lang = "ja-JP"; uttr.rate = rate; uttr.pitch = pitch;
     
     const targetVoice = voices.find(v => v.name === voiceName);
     if(targetVoice) uttr.voice = targetVoice;
@@ -353,7 +342,7 @@ function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function testVoice() { speakText("設定を保存しました。この声で読み上げます。"); }
 
 // ==========================================
-// 3. 検索機能 (ご要望の実装)
+// 3. 検索機能（スマート耳勉版）
 // ==========================================
 let currentMode = 'search';
 
@@ -374,43 +363,42 @@ function setMode(mode) {
     }
 }
 
-function refreshSearch() {
-    const target = document.getElementById('search-target').value; // 選択されたモード
+function refreshSearch(forceAll = false) {
+    const target = document.getElementById('search-target').value;
     const rawKey = document.getElementById('search-box').value;
+    const keyword = rawKey.toLowerCase().trim();
     const container = document.getElementById('content-area');
     container.innerHTML = '';
 
-    // ① 条文検索モード (minpo-law, gyosei-law)
+    // 空っぽなら案内を出す（forceAllの時は出さない）
+    if (keyword === '' && !forceAll) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:#999;">
+                <p style="font-size:3rem; margin:0;">🔍</p>
+                <p>キーワードや条文番号を入力</p>
+                <p style="font-size:0.8rem;">例：「94」「詐欺」<br>または下の再生ボタンで全件リスニング</p>
+            </div>
+        `;
+        return; 
+    }
+
     if (target.includes('law')) {
-        const subjectFilter = target === 'minpo-law' ? '民法' : '行政'; // 行政手続法なども含むため
-        
-        // 入力文字を「区切り文字」で分割して配列にする
-        // 「、」「,」「.」「スペース」「と」で分割
+        const subjectFilter = target === 'minpo-law' ? '民法' : '行政';
         const numbers = rawKey.split(/[、,.\sと]+/).filter(n => n.trim() !== "");
 
-        if (numbers.length === 0 && rawKey.trim() !== "") {
-            // 数字がない検索は無視（または全表示）だが、基本は数字待ち
-        }
-
         const filtered = articlesData.filter(item => {
-            // 科目チェック
             if (!item.subject.includes(subjectFilter)) return false;
-            
-            // 何も入力なければ全表示（または表示しない）→ ここでは全表示にする
-            if (numbers.length === 0) return true;
-
-            // 入力された数字のどれかと一致するか？
+            if (forceAll) return true;
+            if (numbers.length === 0) return item.title.includes(keyword) || item.text.includes(keyword);
             return numbers.includes(item.number);
         });
 
         if(filtered.length === 0) {
-            container.innerHTML = '<p>該当する条文が見つかりません。</p>';
-            return;
+            container.innerHTML = '<p style="text-align:center; padding:20px;">該当なし</p>'; return;
         }
 
         filtered.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'card';
+            const card = document.createElement('div'); card.className = 'card';
             card.innerHTML = `
                 <div class="card-header">
                     <span class="subject-badge">${item.subject} 第${item.number}条</span>
@@ -422,62 +410,36 @@ function refreshSearch() {
             container.appendChild(card);
         });
 
-    } 
-    // ② 用語検索モード (minpo-term, gyosei-term)
-    else {
+    } else {
         const subjectFilter = target === 'minpo-term' ? '民法' : '行政法';
-        const keyword = rawKey.toLowerCase();
-
         const filtered = termsData.filter(item => {
             const matchSubject = item.subject === subjectFilter;
-            const matchKey = item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword);
-            return matchSubject && matchKey;
+            if (forceAll) return true;
+            return matchSubject && (item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword));
         });
 
         if(filtered.length === 0) {
-            container.innerHTML = '<p>該当する用語が見つかりません。</p>';
-            return;
+            container.innerHTML = '<p style="text-align:center; padding:20px;">該当なし</p>'; return;
         }
 
         filtered.forEach(item => {
-            // ★重要：詳細情報の条文番号を「クリック可能なリンク」に変換する処理
             let detailHtml = '';
             if (item.detail) {
-                // 正規表現で「数字」を見つけて、onclickリンクに置換する
-                // 例: "109条" -> <span class="law-link" onclick="showLawModal('民法', '109')">109</span>条
-                const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => {
-                    return `<span class="law-link" onclick="showLawModal('${item.subject}', '${match}')">${match}</span>`;
-                });
-
-                detailHtml = `
-                    <div class="legal-detail show">
-                        <strong>【条文】</strong> ${linkedArticle}<br>
-                        <strong>【判例等】</strong> ${item.detail.case}
-                    </div>
-                `;
+                const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => `<span class="law-link" onclick="showLawModal('${item.subject}', '${match}')">${match}</span>`);
+                detailHtml = `<div class="legal-detail show"><strong>【条文】</strong> ${linkedArticle}<br><strong>【判例等】</strong> ${item.detail.case}</div>`;
             }
-
-            const card = document.createElement('div');
-            card.className = 'card';
+            const card = document.createElement('div'); card.className = 'card';
             card.innerHTML = `
-                <div class="card-header">
-                    <span class="subject-badge">${item.subject}</span>
-                    <button class="btn-speak-icon" onclick="speakText('${item.term}。${item.desc}')">🔈</button>
-                </div>
-                <div class="term-title">${item.term}</div>
-                <p>${item.desc}</p>
-                ${detailHtml}
+                <div class="card-header"><span class="subject-badge">${item.subject}</span><button class="btn-speak-icon" onclick="speakText('${item.term}。${item.desc}')">🔈</button></div>
+                <div class="term-title">${item.term}</div><p>${item.desc}</p>${detailHtml}
             `;
             container.appendChild(card);
         });
     }
 }
 
-// ★モーダルで条文を表示する機能
 function showLawModal(subject, number) {
-    // 該当する条文を探す
     const law = articlesData.find(item => item.subject.includes(subject) && item.number == number);
-    
     const titleEl = document.getElementById('law-modal-title');
     const contentEl = document.getElementById('law-modal-content');
     
@@ -486,18 +448,24 @@ function showLawModal(subject, number) {
         contentEl.innerHTML = law.text;
     } else {
         titleEl.textContent = "データなし";
-        contentEl.textContent = `申し訳ありません。${subject}${number}条のデータが見つかりませんでした。`;
+        contentEl.textContent = `データが見つかりませんでした。`;
     }
-    
     document.getElementById('law-modal-overlay').style.display = 'flex';
 }
 
 // ==========================================
-// 4. 連続再生 (オートプレイ)
+// 4. スマート連続再生
 // ==========================================
 function startAutoPlay() {
-    const cards = document.querySelectorAll('.card');
-    if(cards.length === 0) return;
+    let cards = document.querySelectorAll('.card');
+    
+    // 画面に何もなければ全件ロードしてから再生
+    if(cards.length === 0) {
+        refreshSearch(true);
+        cards = document.querySelectorAll('.card');
+        if(cards.length === 0) { alert("データがありません"); return; }
+    }
+
     playQueue = Array.from(cards);
     currentPlayIndex = 0;
     isAutoPlaying = true;
@@ -512,20 +480,16 @@ function playNext() {
     card.classList.add('reading');
     card.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    // 読み上げテキスト抽出
     let text = "";
     if (card.querySelector('.law-text')) {
-        // 条文モード
         const title = card.querySelector('.term-title').textContent;
         const body = card.querySelector('.law-text').textContent;
         text = `${title}。${body}`;
     } else {
-        // 用語モード
         const term = card.querySelector('.term-title').textContent;
         const desc = card.querySelector('p').textContent;
         text = `${term}。${desc}`;
     }
-
     document.getElementById('audio-status').textContent = `▶️ ${card.querySelector('.term-title').textContent}`;
     speakText(text, () => {
         currentPlayIndex++;
@@ -540,7 +504,7 @@ function stopAutoPlay() {
 }
 
 // ==========================================
-// 5. クイズ機能 (変更なし)
+// 5. クイズ機能
 // ==========================================
 function startQuiz(type) {
     const container = document.getElementById('content-area'); container.innerHTML = '';
@@ -578,7 +542,7 @@ function toggleWeakPoint(id, el) {
     localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
 }
 function showCompanion() {
-    const list = ["ホットミルク", "コーヒー", "ココア", "チョコ","ジャズミュージック","おせんべい", "ストレッチ", "おにぎり"];
+    const list = ["ホットミルク", "コーヒー", "ココア", "チョコ", "深呼吸", "おにぎり"];
     alert("今日のお供: " + list[Math.floor(Math.random()*list.length)]);
 }
 </script>
