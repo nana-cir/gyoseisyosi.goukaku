@@ -54,9 +54,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         .btn-speak-icon {
-            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--accent); padding: 0;
-            /* ボタンのタップ領域を少し広げる */
-            padding: 5px; 
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--accent); padding: 5px;
         }
 
         /* モード切替タブ */
@@ -70,10 +68,9 @@
             background: var(--card-bg); padding: 15px; border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--primary);
             transition: background-color 0.3s;
-            cursor: pointer; /* タップできる感を出す */
+            cursor: pointer;
         }
-        .card:active { background-color: #f0f0f0; } /* タップ時の反応 */
-        
+        .card:active { background-color: #f0f0f0; }
         .card.reading {
             background-color: #fff9c4; border-left-color: var(--accent);
             transform: scale(1.02); box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -103,7 +100,7 @@
         .correct { color: #27ae60; }
         .incorrect { color: #c0392b; }
 
-        /* プレイヤーバー（下部固定） */
+        /* プレイヤーバー */
         #audio-player-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
             background: rgba(44, 62, 80, 0.95); color: white; padding: 15px 20px;
@@ -112,6 +109,18 @@
             box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         }
         #audio-status { font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; }
+
+        /* トップへ戻るボタン */
+        #back-to-top {
+            position: fixed; bottom: 90px; right: 20px;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: var(--primary); color: white;
+            border: none; font-size: 1.5rem; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1500; opacity: 0.9; transition: all 0.3s;
+        }
+        #back-to-top:hover { transform: translateY(-3px); opacity: 1; }
 
         /* モーダル共通 */
         .modal-overlay {
@@ -187,6 +196,8 @@
 
     <div id="content-area"></div>
 
+    <button id="back-to-top" onclick="scrollToTop()">↑</button>
+
     <div id="audio-player-bar">
         <span id="audio-status">再生中...</span>
         <button class="btn-stop" onclick="stopAutoPlay()">停止 ■</button>
@@ -226,7 +237,7 @@
 
 <script>
 // ==========================================
-// 1. データ管理 (用語ファイル分割対応版)
+// 1. データ管理
 // ==========================================
 let termsData = [];
 let quizData = [];
@@ -244,7 +255,6 @@ let audioCtx = null;
 
 async function loadData() {
     try {
-        // ★ここで terms_minpo.json と terms_gyosei.json を読み込む！
         const [resTermsMinpo, resTermsGyosei, resQuiz, resMinpo, resGyosei] = await Promise.all([
             fetch('./terms_minpo.json'),
             fetch('./terms_gyosei.json'),
@@ -252,14 +262,12 @@ async function loadData() {
             fetch('./minpo.json'),
             fetch('./gyosei.json')
         ]);
-
+        
         const termsMinpo = await resTermsMinpo.json();
         const termsGyosei = await resTermsGyosei.json();
-        // 用語データを合体！（検索ロジックは今まで通り termsData を使うため）
         termsData = [...termsMinpo, ...termsGyosei];
 
         quizData = await resQuiz.json();
-        
         const minpo = await resMinpo.json();
         const gyosei = await resGyosei.json();
         articlesData = [...minpo, ...gyosei];
@@ -270,10 +278,10 @@ async function loadData() {
         loadVoiceSettings(); 
         loadVoices(); 
         refreshSearch(); 
-        console.log("全データ読み込み完了 (用語分割版)");
+        console.log("全データ読み込み完了");
     } catch (error) {
         console.error(error);
-        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。JSONファイル構成を確認してください。</p>';
+        document.getElementById('content-area').innerHTML = '<p style="text-align:center;color:red;padding:20px;">【エラー】データを読み込めませんでした。<br>JSONファイル（特にgyosei.json）の記述に誤りがある可能性があります。<br>カンマ「,」の付け忘れや、余計なカンマがないか確認してください。</p>';
     }
 }
 window.addEventListener('DOMContentLoaded', loadData);
@@ -415,17 +423,11 @@ function refreshSearch(forceAll = false) {
         } else { // 用語
             let detailHtml = '';
             if (item.detail) {
-                // ★ここが変更点！「法律名＋数字」を検出してリンクにする正規表現
-                // 例：「民法94」や「行政手続法13」全体がリンクになる
                 const regex = /(民法|行政.*?法|国家賠償法|地方自治法|憲法)\s*(\d+(?:の\d+)?)/g;
-                
                 const linkedArticle = item.detail.article.replace(regex, (match, lawName, number) => {
-                    // 検索用に科目名を統一（民法以外はそのまま渡すなど調整）
                     let searchSubject = lawName; 
-                    // リンク作成：クリック領域が広がる！
                     return `<span class="law-link" onclick="event.stopPropagation(); showLawModal('${searchSubject}', '${number}')">${match}</span>`;
                 });
-                
                 detailHtml = `<div class="legal-detail show"><strong>【条文】</strong> ${linkedArticle}<br><strong>【判例等】</strong> ${item.detail.case}</div>`;
             }
             contentHtml = `
@@ -436,6 +438,7 @@ function refreshSearch(forceAll = false) {
         container.appendChild(card);
     });
 }
+
 function showLawModal(subject, number) {
     const law = articlesData.find(item => item.subject.includes(subject) && item.number == number);
     const titleEl = document.getElementById('law-modal-title');
@@ -444,7 +447,7 @@ function showLawModal(subject, number) {
         titleEl.textContent = `${law.subject} 第${law.number}条 ${law.title}`;
         contentEl.innerHTML = law.text;
     } else {
-        titleEl.textContent = "データなし"; contentEl.textContent = `データなし`;
+        titleEl.textContent = "データなし"; contentEl.textContent = `データが見つかりませんでした。(${subject}${number}条)`;
     }
     document.getElementById('law-modal-overlay').style.display = 'flex';
 }
@@ -452,15 +455,11 @@ function showLawModal(subject, number) {
 // ==========================================
 // 4. スマート連続再生 & オーディオエンジン
 // ==========================================
-
-// ★初期化関数：ユーザーのタップ操作時に必ず呼ぶ
 function initAudio() {
     if (!audioCtx) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (AudioContext) {
             audioCtx = new AudioContext();
-            
-            // 無音を一瞬再生して、スマホのオーディオロックを解除（Wake Up）
             const buffer = audioCtx.createBuffer(1, 1, 22050);
             const source = audioCtx.createBufferSource();
             source.buffer = buffer;
@@ -468,21 +467,15 @@ function initAudio() {
             source.start(0);
         }
     }
-    // サスペンド状態なら再開させる（iOS対策）
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
 }
 
-// チャイム再生（初期化済みのグローバルaudioCtxを使用）
 function playChime() {
     if (!audioCtx) return;
-
-    // もしコンテキストが死んでたら蘇生を試みる
     if (audioCtx.state === 'suspended') audioCtx.resume();
-
     const now = audioCtx.currentTime;
-    
     const playTone = (freq, time, duration) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -490,24 +483,18 @@ function playChime() {
         osc.type = 'sine';
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        
-        // 音量コントロール（フェードアウト）
         gain.gain.setValueAtTime(0.1, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-        
         osc.start(time);
         osc.stop(time + duration);
     };
-
-    // ド・ミ・ソの和音（ポーン♪）
     playTone(523.25, now, 1.5);
     playTone(659.25, now + 0.2, 1.5);
     playTone(783.99, now + 0.4, 2.0);
 }
 
 function startAutoPlay() {
-    initAudio(); // ★ここで音出しの許可を取る
-
+    initAudio();
     let cards = document.querySelectorAll('.card');
     if(cards.length === 0) {
         refreshSearch(true);
@@ -523,13 +510,11 @@ function startAutoPlay() {
 }
 
 function playFromThisCard(cardEl) {
-    initAudio(); // ★ここでも音出しの許可を取る
-
+    initAudio();
     const cards = document.querySelectorAll('.card');
     playQueue = Array.from(cards);
     currentPlayIndex = playQueue.indexOf(cardEl);
     if (currentPlayIndex === -1) return;
-    
     playCounter = 0;
     isAutoPlaying = true;
     document.getElementById('audio-player-bar').style.display = 'flex';
@@ -540,17 +525,13 @@ function playFromThisCard(cardEl) {
 function playNext() {
     if(!isAutoPlaying || currentPlayIndex >= playQueue.length) { stopAutoPlay(); return; }
     
-    // 5回ごとに休憩
     if (playCounter > 0 && playCounter % 5 === 0) {
         document.getElementById('audio-status').textContent = `☕️ 3秒リラックス中...`;
         playQueue.forEach(c => c.classList.remove('reading'));
-        
-        // ★修正済み：作成済みのaudioCtxを使うのでエラーにならない
-        playChime(); 
-
+        playChime();
         setTimeout(() => {
             if(!isAutoPlaying) return;
-            playCounter++; // ループ脱出用
+            playCounter++;
             playNext();
         }, 3000);
         return; 
@@ -589,7 +570,7 @@ function stopAutoPlay() {
 }
 
 // ==========================================
-// 5. クイズ機能 (変更なし)
+// 5. クイズ機能
 // ==========================================
 function startQuiz(type) {
     const container = document.getElementById('content-area'); container.innerHTML = '';
@@ -628,10 +609,28 @@ function toggleWeakPoint(id, el) {
 }
 
 // ==========================================
-// 6. 息抜き機能（おせんべい入りVer.）
+// 6. 息抜き機能
 // ==========================================
 function showCompanion() {
     const list = ["ホットミルク", "コーヒー", "ココア", "おせんべい","ジャズミュージック","アイスクリーム","キャラメル","チョコ", "お香","深呼吸", "おにぎり"];
     alert("がんばれ！今日のお供: " + list[Math.floor(Math.random()*list.length)]);
 }
+
+// ==========================================
+// 7. トップへ戻るボタン
+// ==========================================
+window.onscroll = function() {
+    const btn = document.getElementById("back-to-top");
+    if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+        btn.style.display = "flex";
+    } else {
+        btn.style.display = "none";
+    }
+};
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 </script>
+</body>
+</html>
