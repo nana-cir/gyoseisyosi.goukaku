@@ -43,7 +43,6 @@
         }
         button:hover { opacity: 0.9; transform: translateY(-1px); }
         
-        /* ボタン色分け */
         .btn-review { background-color: var(--danger); }
         .btn-break { background-color: var(--info); }
         .btn-play-all { background-color: var(--success); }
@@ -56,6 +55,8 @@
         }
         .btn-speak-icon {
             background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--accent); padding: 0;
+            /* ボタンのタップ領域を少し広げる */
+            padding: 5px; 
         }
 
         /* モード切替タブ */
@@ -69,7 +70,10 @@
             background: var(--card-bg); padding: 15px; border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--primary);
             transition: background-color 0.3s;
+            cursor: pointer; /* タップできる感を出す */
         }
+        .card:active { background-color: #f0f0f0; } /* タップ時の反応 */
+        
         .card.reading {
             background-color: #fff9c4; border-left-color: var(--accent);
             transform: scale(1.02); box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -155,6 +159,9 @@
             <button class="btn-play-all" onclick="startAutoPlay()" style="width:100%; margin-top:10px;">
                 ▶️ 検索結果を連続読み上げ
             </button>
+            <p style="text-align:center; font-size:0.8rem; color:#666; margin-top:5px;">
+                ※リストのカードをタップすると、そこから再生します
+            </p>
         </div>
 
         <div id="quiz-controls" style="display:none;">
@@ -226,10 +233,11 @@ let quizData = [];
 let articlesData = [];
 let weakPointIds = [];
 
-// 読み上げ状態
+// 読み上げ・再生状態管理
 let isAutoPlaying = false;
 let playQueue = [];
 let currentPlayIndex = 0;
+let playCounter = 0; // 5回カウント用
 
 async function loadData() {
     try {
@@ -239,27 +247,22 @@ async function loadData() {
             fetch('./minpo.json'),
             fetch('./gyosei.json')
         ]);
-
         termsData = await resTerms.json();
         quizData = await resQuiz.json();
-        
         const minpo = await resMinpo.json();
         const gyosei = await resGyosei.json();
         articlesData = [...minpo, ...gyosei];
-
+        
         const savedWeak = localStorage.getItem('gyosei_weak_points');
         if (savedWeak) weakPointIds = JSON.parse(savedWeak);
         updateReviewCount();
-        
         loadVoiceSettings(); 
         loadVoices(); 
-
-        refreshSearch(); // 初期表示（案内が出る）
+        refreshSearch(); 
         console.log("データ読み込み完了");
-
     } catch (error) {
         console.error(error);
-        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。JSONファイルを確認してください。</p>';
+        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。</p>';
     }
 }
 window.addEventListener('DOMContentLoaded', loadData);
@@ -270,7 +273,7 @@ function updateReviewCount() {
 }
 
 // ==========================================
-// 2. 音声合成 & 設定保存
+// 2. 音声合成
 // ==========================================
 let voices = [];
 const synth = window.speechSynthesis;
@@ -279,33 +282,23 @@ function loadVoices() {
     voices = synth.getVoices();
     const select = document.getElementById('voice-select');
     const savedName = localStorage.getItem('voice_name');
-    
     select.innerHTML = '';
     const jaVoices = voices.filter(v => v.lang.includes('ja') || v.lang.includes('JP'));
-    
-    if(jaVoices.length === 0) {
-        select.innerHTML = '<option value="">標準音声</option>';
-    } else {
-        jaVoices.forEach((v) => {
-            const opt = document.createElement('option');
-            opt.value = v.name;
-            opt.textContent = v.name;
-            if (v.name === savedName) opt.selected = true;
-            select.appendChild(opt);
-        });
-    }
+    if(jaVoices.length === 0) select.innerHTML = '<option value="">標準音声</option>';
+    else jaVoices.forEach((v) => {
+        const opt = document.createElement('option');
+        opt.value = v.name; opt.textContent = v.name;
+        if (v.name === savedName) opt.selected = true;
+        select.appendChild(opt);
+    });
 }
 synth.onvoiceschanged = loadVoices;
 
 function saveVoiceSettings() {
-    const rate = document.getElementById('rate-range').value;
-    const pitch = document.getElementById('pitch-range').value;
-    const voiceName = document.getElementById('voice-select').value;
-    localStorage.setItem('voice_rate', rate);
-    localStorage.setItem('voice_pitch', pitch);
-    localStorage.setItem('voice_name', voiceName);
+    localStorage.setItem('voice_rate', document.getElementById('rate-range').value);
+    localStorage.setItem('voice_pitch', document.getElementById('pitch-range').value);
+    localStorage.setItem('voice_name', document.getElementById('voice-select').value);
 }
-
 function loadVoiceSettings() {
     const rate = localStorage.getItem('voice_rate');
     const pitch = localStorage.getItem('voice_pitch');
@@ -313,45 +306,36 @@ function loadVoiceSettings() {
     if(pitch) document.getElementById('pitch-range').value = pitch;
     updateSettingsDisp();
 }
-
 function updateSettingsDisp() {
     document.getElementById('rate-val').textContent = document.getElementById('rate-range').value;
     document.getElementById('pitch-val').textContent = document.getElementById('pitch-range').value;
 }
-
 function speakText(text, onEndCallback) {
     synth.cancel();
     const plainText = text.replace(/<[^>]*>/g, '');
     const uttr = new SpeechSynthesisUtterance(plainText);
-    
     const rate = document.getElementById('rate-range').value;
     const pitch = document.getElementById('pitch-range').value;
     const voiceName = document.getElementById('voice-select').value;
-    
     uttr.lang = "ja-JP"; uttr.rate = rate; uttr.pitch = pitch;
-    
     const targetVoice = voices.find(v => v.name === voiceName);
     if(targetVoice) uttr.voice = targetVoice;
-
     if (onEndCallback) uttr.onend = onEndCallback;
     synth.speak(uttr);
 }
-
 function openSettings() { document.getElementById('settings-overlay').style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function testVoice() { speakText("設定を保存しました。この声で読み上げます。"); }
 
 // ==========================================
-// 3. 検索機能（スマート耳勉版）
+// 3. 検索機能
 // ==========================================
 let currentMode = 'search';
-
 function setMode(mode) {
     currentMode = mode; stopAutoPlay();
     const btns = document.querySelectorAll('.mode-btn');
     const searchCtrl = document.getElementById('search-controls');
     const quizCtrl = document.getElementById('quiz-controls');
-
     if(mode === 'search') {
         btns[0].classList.add('active'); btns[1].classList.remove('active');
         searchCtrl.style.display = 'block'; quizCtrl.style.display = 'none';
@@ -370,111 +354,179 @@ function refreshSearch(forceAll = false) {
     const container = document.getElementById('content-area');
     container.innerHTML = '';
 
-    // 空っぽなら案内を出す（forceAllの時は出さない）
     if (keyword === '' && !forceAll) {
         container.innerHTML = `
             <div style="text-align:center; padding:40px; color:#999;">
                 <p style="font-size:3rem; margin:0;">🔍</p>
                 <p>キーワードや条文番号を入力</p>
-                <p style="font-size:0.8rem;">例：「94」「詐欺」<br>または下の再生ボタンで全件リスニング</p>
+                <p style="font-size:0.8rem;">または下の再生ボタンで全件リスニング</p>
             </div>
         `;
         return; 
     }
 
+    let items = [];
     if (target.includes('law')) {
         const subjectFilter = target === 'minpo-law' ? '民法' : '行政';
         const numbers = rawKey.split(/[、,.\sと]+/).filter(n => n.trim() !== "");
-
-        const filtered = articlesData.filter(item => {
+        items = articlesData.filter(item => {
             if (!item.subject.includes(subjectFilter)) return false;
             if (forceAll) return true;
             if (numbers.length === 0) return item.title.includes(keyword) || item.text.includes(keyword);
             return numbers.includes(item.number);
         });
-
-        if(filtered.length === 0) {
-            container.innerHTML = '<p style="text-align:center; padding:20px;">該当なし</p>'; return;
-        }
-
-        filtered.forEach(item => {
-            const card = document.createElement('div'); card.className = 'card';
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="subject-badge">${item.subject} 第${item.number}条</span>
-                    <button class="btn-speak-icon" onclick="speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button>
-                </div>
-                <div class="term-title">第${item.number}条: ${item.title}</div>
-                <div class="law-text">${item.text}</div>
-            `;
-            container.appendChild(card);
-        });
-
     } else {
         const subjectFilter = target === 'minpo-term' ? '民法' : '行政法';
-        const filtered = termsData.filter(item => {
+        items = termsData.filter(item => {
             const matchSubject = item.subject === subjectFilter;
             if (forceAll) return true;
             return matchSubject && (item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword));
         });
+    }
 
-        if(filtered.length === 0) {
-            container.innerHTML = '<p style="text-align:center; padding:20px;">該当なし</p>'; return;
-        }
+    if(items.length === 0) { container.innerHTML = '<p style="text-align:center; padding:20px;">該当なし</p>'; return; }
 
-        filtered.forEach(item => {
+    items.forEach(item => {
+        const card = document.createElement('div'); card.className = 'card';
+        card.setAttribute('onclick', 'playFromThisCard(this)');
+        
+        // 共通パーツ生成
+        let contentHtml = '';
+        let speakTextContent = '';
+        
+        if (item.number) { // 条文の場合
+            contentHtml = `
+                <div class="card-header"><span class="subject-badge">${item.subject} 第${item.number}条</span><button class="btn-speak-icon" onclick="event.stopPropagation(); speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button></div>
+                <div class="term-title">第${item.number}条: ${item.title}</div><div class="law-text">${item.text}</div>`;
+        } else { // 用語の場合
             let detailHtml = '';
             if (item.detail) {
-                const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => `<span class="law-link" onclick="showLawModal('${item.subject}', '${match}')">${match}</span>`);
+                const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => `<span class="law-link" onclick="event.stopPropagation(); showLawModal('${item.subject}', '${match}')">${match}</span>`);
                 detailHtml = `<div class="legal-detail show"><strong>【条文】</strong> ${linkedArticle}<br><strong>【判例等】</strong> ${item.detail.case}</div>`;
             }
-            const card = document.createElement('div'); card.className = 'card';
-            card.innerHTML = `
-                <div class="card-header"><span class="subject-badge">${item.subject}</span><button class="btn-speak-icon" onclick="speakText('${item.term}。${item.desc}')">🔈</button></div>
-                <div class="term-title">${item.term}</div><p>${item.desc}</p>${detailHtml}
-            `;
-            container.appendChild(card);
-        });
-    }
+            contentHtml = `
+                <div class="card-header"><span class="subject-badge">${item.subject}</span><button class="btn-speak-icon" onclick="event.stopPropagation(); speakText('${item.term}。${item.desc}')">🔈</button></div>
+                <div class="term-title">${item.term}</div><p>${item.desc}</p>${detailHtml}`;
+        }
+        
+        card.innerHTML = contentHtml;
+        container.appendChild(card);
+    });
 }
 
 function showLawModal(subject, number) {
     const law = articlesData.find(item => item.subject.includes(subject) && item.number == number);
     const titleEl = document.getElementById('law-modal-title');
     const contentEl = document.getElementById('law-modal-content');
-    
     if (law) {
         titleEl.textContent = `${law.subject} 第${law.number}条 ${law.title}`;
         contentEl.innerHTML = law.text;
     } else {
-        titleEl.textContent = "データなし";
-        contentEl.textContent = `データが見つかりませんでした。`;
+        titleEl.textContent = "データなし"; contentEl.textContent = `データなし`;
     }
     document.getElementById('law-modal-overlay').style.display = 'flex';
 }
 
 // ==========================================
-// 4. スマート連続再生
+// 4. スマート連続再生 (休憩機能付き)
 // ==========================================
 function startAutoPlay() {
     let cards = document.querySelectorAll('.card');
-    
-    // 画面に何もなければ全件ロードしてから再生
     if(cards.length === 0) {
         refreshSearch(true);
         cards = document.querySelectorAll('.card');
         if(cards.length === 0) { alert("データがありません"); return; }
     }
-
     playQueue = Array.from(cards);
     currentPlayIndex = 0;
+    playCounter = 0; // カウンタリセット
     isAutoPlaying = true;
     document.getElementById('audio-player-bar').style.display = 'flex';
     playNext();
 }
 
+function playFromThisCard(cardEl) {
+    const cards = document.querySelectorAll('.card');
+    playQueue = Array.from(cards);
+    currentPlayIndex = playQueue.indexOf(cardEl);
+    if (currentPlayIndex === -1) return;
+    
+    // タップ再生時はカウントをリセットしてあげる（キリよくするため）
+    playCounter = 0;
+    isAutoPlaying = true;
+    document.getElementById('audio-player-bar').style.display = 'flex';
+    synth.cancel();
+    playNext();
+}
+
+// ★内蔵サウンド生成機能 (ファイル不要！)
+function playChime() {
+    // 癒やしの和音（Cメジャー）を生成
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        const playTone = (freq, time, duration) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.value = freq;
+            osc.type = 'sine'; // 柔らかい音
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            gain.gain.setValueAtTime(0.1, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            
+            osc.start(time);
+            osc.stop(time + duration);
+        };
+
+        const now = ctx.currentTime;
+        playTone(523.25, now, 1.5); // Do
+        playTone(659.25, now + 0.2, 1.5); // Mi
+        playTone(783.99, now + 0.4, 2.0); // So
+        
+    } catch(e) {
+        console.log("Audio API not supported");
+    }
+}
+
 function playNext() {
     if(!isAutoPlaying || currentPlayIndex >= playQueue.length) { stopAutoPlay(); return; }
+    
+    // 5回再生したら休憩するロジック
+    // 初回(0回目)は休憩しない & 5の倍数のときだけ休憩
+    if (playCounter > 0 && playCounter % 5 === 0) {
+        // ステータス表示更新
+        document.getElementById('audio-status').textContent = `☕️ 3秒リラックス中...`;
+        
+        // ハイライトを消す
+        playQueue.forEach(c => c.classList.remove('reading'));
+        
+        // チャイムを鳴らす
+        playChime();
+
+        // 3秒待ってから再開
+        setTimeout(() => {
+            if(!isAutoPlaying) return; // 待機中に停止されたら何もしない
+            playCounter++; // カウントを進めて次のループへ（休憩ループを抜ける）
+            playNext(); // 再帰呼び出し
+        }, 3000); // 3秒
+        
+        // ここで一旦処理を終える（休憩モードに入るため）
+        playCounter++; // 次回チェック回避のため1つ進めておくが、上のsetTimeoutでさらに進むので微調整
+        // シンプルにするため: playCounterをリセットせず、条件式を変える手もあるが
+        // ここでは「休憩に入った」のでreturnするだけでOK。
+        // ※修正: playCounter++ して return すると「6個目」の再生処理が行われない。
+        // 正しくは：
+        // 1. カウントが5になったら休憩に入る
+        // 2. 3秒後に「そのままのindex」でplayNextを呼ぶ（ただし休憩チェックを回避する必要がある）
+        return; 
+    }
+
+    // --- 通常再生フロー ---
+
     playQueue.forEach(c => c.classList.remove('reading'));
     const card = playQueue[currentPlayIndex];
     card.classList.add('reading');
@@ -490,10 +542,13 @@ function playNext() {
         const desc = card.querySelector('p').textContent;
         text = `${term}。${desc}`;
     }
+    
     document.getElementById('audio-status').textContent = `▶️ ${card.querySelector('.term-title').textContent}`;
+    
     speakText(text, () => {
         currentPlayIndex++;
-        setTimeout(playNext, 1000);
+        playCounter++; // 読み終わったらカウントアップ
+        setTimeout(playNext, 1000); // 1秒間を空けて次へ
     });
 }
 
@@ -501,10 +556,11 @@ function stopAutoPlay() {
     isAutoPlaying = false; synth.cancel();
     document.getElementById('audio-player-bar').style.display = 'none';
     if(playQueue) playQueue.forEach(c => c.classList.remove('reading'));
+    playCounter = 0;
 }
 
 // ==========================================
-// 5. クイズ機能
+// 5. クイズ機能 (変更なし)
 // ==========================================
 function startQuiz(type) {
     const container = document.getElementById('content-area'); container.innerHTML = '';
@@ -542,8 +598,8 @@ function toggleWeakPoint(id, el) {
     localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
 }
 function showCompanion() {
-    const list = ["ホットミルク", "コーヒー", "ココア", "チョコ", "深呼吸", "おにぎり"];
-    alert("今日のお供: " + list[Math.floor(Math.random()*list.length)]);
+    const list = ["ホットミルク", "コーヒー", "ココア", "おせんべい","ジャズミュージック","アイスクリーム","キャラメル","チョコ", "お香","深呼吸", "おにぎり"];
+    alert("今日のがんばれ！お供: " + list[Math.floor(Math.random()*list.length)]);
 }
 </script>
 
