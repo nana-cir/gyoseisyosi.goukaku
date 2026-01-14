@@ -365,6 +365,7 @@ function refreshSearch(forceAll = false) {
     const container = document.getElementById('content-area');
     container.innerHTML = '';
 
+    // キーワードが空で、かつ全件表示モードでない場合は案内を出す
     if (keyword === '' && !forceAll) {
         container.innerHTML = `
             <div style="text-align:center; padding:40px; color:#999;">
@@ -377,20 +378,36 @@ function refreshSearch(forceAll = false) {
     }
 
     let items = [];
+    
+    // ① 条文検索モード (minpo-law, gyosei-law)
     if (target.includes('law')) {
-        const subjectFilter = target === 'minpo-law' ? '民法' : '行政';
+        const subjectFilter = target === 'minpo-law' ? '民法' : '行政'; // 行政手続法なども含むため「行政」でマッチさせる
         const numbers = rawKey.split(/[、,.\sと]+/).filter(n => n.trim() !== "");
+        
         items = articlesData.filter(item => {
+            // まず科目をチェック（ここで弾く）
             if (!item.subject.includes(subjectFilter)) return false;
+            
+            // 全件表示モードなら、科目が合っていればOK
             if (forceAll) return true;
+            
+            // キーワード検索
             if (numbers.length === 0) return item.title.includes(keyword) || item.text.includes(keyword);
             return numbers.includes(item.number);
         });
-    } else {
+
+    } 
+    // ② 用語検索モード (minpo-term, gyosei-term)
+    else {
         const subjectFilter = target === 'minpo-term' ? '民法' : '行政法';
+        
         items = termsData.filter(item => {
             const matchSubject = item.subject === subjectFilter;
-            if (forceAll) return true;
+            
+            // ★【修正ポイント】全件表示モードでも、科目が合致しているか(matchSubject)はチェックする！
+            if (forceAll) return matchSubject;
+            
+            // 通常検索
             return matchSubject && (item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword));
         });
     }
@@ -402,11 +419,11 @@ function refreshSearch(forceAll = false) {
         card.setAttribute('onclick', 'playFromThisCard(this)');
         
         let contentHtml = '';
-        if (item.number) { 
+        if (item.number) { // 条文
             contentHtml = `
                 <div class="card-header"><span class="subject-badge">${item.subject} 第${item.number}条</span><button class="btn-speak-icon" onclick="event.stopPropagation(); speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button></div>
                 <div class="term-title">第${item.number}条: ${item.title}</div><div class="law-text">${item.text}</div>`;
-        } else { 
+        } else { // 用語
             let detailHtml = '';
             if (item.detail) {
                 const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => `<span class="law-link" onclick="event.stopPropagation(); showLawModal('${item.subject}', '${match}')">${match}</span>`);
