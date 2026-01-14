@@ -365,7 +365,6 @@ function refreshSearch(forceAll = false) {
     const container = document.getElementById('content-area');
     container.innerHTML = '';
 
-    // キーワードが空で、かつ全件表示モードでない場合は案内を出す
     if (keyword === '' && !forceAll) {
         container.innerHTML = `
             <div style="text-align:center; padding:40px; color:#999;">
@@ -379,35 +378,25 @@ function refreshSearch(forceAll = false) {
 
     let items = [];
     
-    // ① 条文検索モード (minpo-law, gyosei-law)
+    // ① 条文検索モード
     if (target.includes('law')) {
-        const subjectFilter = target === 'minpo-law' ? '民法' : '行政'; // 行政手続法なども含むため「行政」でマッチさせる
+        const subjectFilter = target === 'minpo-law' ? '民法' : '行政'; 
         const numbers = rawKey.split(/[、,.\sと]+/).filter(n => n.trim() !== "");
         
         items = articlesData.filter(item => {
-            // まず科目をチェック（ここで弾く）
             if (!item.subject.includes(subjectFilter)) return false;
-            
-            // 全件表示モードなら、科目が合っていればOK
             if (forceAll) return true;
-            
-            // キーワード検索
             if (numbers.length === 0) return item.title.includes(keyword) || item.text.includes(keyword);
             return numbers.includes(item.number);
         });
 
     } 
-    // ② 用語検索モード (minpo-term, gyosei-term)
+    // ② 用語検索モード
     else {
         const subjectFilter = target === 'minpo-term' ? '民法' : '行政法';
-        
         items = termsData.filter(item => {
             const matchSubject = item.subject === subjectFilter;
-            
-            // ★【修正ポイント】全件表示モードでも、科目が合致しているか(matchSubject)はチェックする！
             if (forceAll) return matchSubject;
-            
-            // 通常検索
             return matchSubject && (item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword));
         });
     }
@@ -426,7 +415,17 @@ function refreshSearch(forceAll = false) {
         } else { // 用語
             let detailHtml = '';
             if (item.detail) {
-                const linkedArticle = item.detail.article.replace(/(\d+)/g, (match) => `<span class="law-link" onclick="event.stopPropagation(); showLawModal('${item.subject}', '${match}')">${match}</span>`);
+                // ★ここが変更点！「法律名＋数字」を検出してリンクにする正規表現
+                // 例：「民法94」や「行政手続法13」全体がリンクになる
+                const regex = /(民法|行政.*?法|国家賠償法|地方自治法|憲法)\s*(\d+(?:の\d+)?)/g;
+                
+                const linkedArticle = item.detail.article.replace(regex, (match, lawName, number) => {
+                    // 検索用に科目名を統一（民法以外はそのまま渡すなど調整）
+                    let searchSubject = lawName; 
+                    // リンク作成：クリック領域が広がる！
+                    return `<span class="law-link" onclick="event.stopPropagation(); showLawModal('${searchSubject}', '${number}')">${match}</span>`;
+                });
+                
                 detailHtml = `<div class="legal-detail show"><strong>【条文】</strong> ${linkedArticle}<br><strong>【判例等】</strong> ${item.detail.case}</div>`;
             }
             contentHtml = `
@@ -437,7 +436,6 @@ function refreshSearch(forceAll = false) {
         container.appendChild(card);
     });
 }
-
 function showLawModal(subject, number) {
     const law = articlesData.find(item => item.subject.includes(subject) && item.number == number);
     const titleEl = document.getElementById('law-modal-title');
