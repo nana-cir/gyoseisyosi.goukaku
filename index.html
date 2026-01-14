@@ -388,11 +388,21 @@ function refreshSearch(forceAll = false) {
     
     // ① 条文検索モード
     if (target.includes('law')) {
-        const subjectFilter = target === 'minpo-law' ? '民法' : '行政'; 
+        const isMinpoMode = target === 'minpo-law';
         const numbers = rawKey.split(/[、,.\sと]+/).filter(n => n.trim() !== "");
         
         items = articlesData.filter(item => {
-            if (!item.subject.includes(subjectFilter)) return false;
+            // ★【ここが修正ポイント！】
+            if (isMinpoMode) {
+                // 民法モードなら「民法」だけを通す
+                if (!item.subject.includes('民法')) return false;
+            } else {
+                // 行政法モードなら「民法以外」で、「行政・地方・国家・憲法」を含むものを通す
+                const validSubjects = ['行政', '地方自治', '国家賠償', '憲法'];
+                const isMatch = validSubjects.some(sub => item.subject.includes(sub));
+                if (!isMatch) return false;
+            }
+
             if (forceAll) return true;
             if (numbers.length === 0) return item.title.includes(keyword) || item.text.includes(keyword);
             return numbers.includes(item.number);
