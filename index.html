@@ -226,7 +226,7 @@
 
 <script>
 // ==========================================
-// 1. データ管理
+// 1. データ管理 (用語ファイル分割対応版)
 // ==========================================
 let termsData = [];
 let quizData = [];
@@ -239,20 +239,27 @@ let playQueue = [];
 let currentPlayIndex = 0;
 let playCounter = 0;
 
-// ★オーディオ管理（ここが重要！）
-// グローバル変数として定義し、ボタンクリック時に一度だけ作成・再利用する
+// オーディオ管理
 let audioCtx = null; 
 
 async function loadData() {
     try {
-        const [resTerms, resQuiz, resMinpo, resGyosei] = await Promise.all([
-            fetch('./terms.json'),
+        // ★ここで terms_minpo.json と terms_gyosei.json を読み込む！
+        const [resTermsMinpo, resTermsGyosei, resQuiz, resMinpo, resGyosei] = await Promise.all([
+            fetch('./terms_minpo.json'),
+            fetch('./terms_gyosei.json'),
             fetch('./quiz.json'),
             fetch('./minpo.json'),
             fetch('./gyosei.json')
         ]);
-        termsData = await resTerms.json();
+
+        const termsMinpo = await resTermsMinpo.json();
+        const termsGyosei = await resTermsGyosei.json();
+        // 用語データを合体！（検索ロジックは今まで通り termsData を使うため）
+        termsData = [...termsMinpo, ...termsGyosei];
+
         quizData = await resQuiz.json();
+        
         const minpo = await resMinpo.json();
         const gyosei = await resGyosei.json();
         articlesData = [...minpo, ...gyosei];
@@ -263,10 +270,10 @@ async function loadData() {
         loadVoiceSettings(); 
         loadVoices(); 
         refreshSearch(); 
-        console.log("データ読み込み完了");
+        console.log("全データ読み込み完了 (用語分割版)");
     } catch (error) {
         console.error(error);
-        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。</p>';
+        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。JSONファイル構成を確認してください。</p>';
     }
 }
 window.addEventListener('DOMContentLoaded', loadData);
