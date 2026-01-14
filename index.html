@@ -21,7 +21,7 @@
             color: var(--text);
             margin: 0;
             padding: 20px;
-            padding-bottom: 80px; /* プレイヤー用の余白 */
+            padding-bottom: 80px;
             line-height: 1.6;
             -webkit-text-size-adjust: 100%;
         }
@@ -79,7 +79,6 @@
             border-left: 5px solid var(--primary);
             transition: background-color 0.3s;
         }
-        /* 読み上げ中のハイライト */
         .card.reading {
             background-color: #fff9c4;
             border-left: 5px solid var(--accent);
@@ -90,6 +89,10 @@
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .subject-badge { font-size: 0.8rem; background: #eee; padding: 2px 8px; border-radius: 4px; color: #666; }
         .term-title { font-weight: bold; font-size: 1.2rem; color: var(--primary); }
+        
+        /* 条文本文のスタイル */
+        .law-text { font-family: "Hiragino Mincho ProN", serif; background: #fafafa; padding: 10px; border-radius: 5px; border: 1px dashed #ccc; margin: 10px 0; }
+
         .legal-detail { margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9rem; display: none; }
         .legal-detail.show { display: block; }
         
@@ -98,23 +101,14 @@
         .correct { color: #27ae60; }
         .incorrect { color: #c0392b; }
 
-        /* 音声プレイヤーコントローラー（画面下部固定） */
         #audio-player-bar {
-            position: fixed;
-            bottom: 0; left: 0; width: 100%;
-            background: rgba(44, 62, 80, 0.95);
-            color: white;
-            padding: 10px 20px;
-            display: none; /* 再生時のみ表示 */
-            align-items: center;
-            justify-content: space-between;
-            box-sizing: border-box;
-            z-index: 1000;
-            backdrop-filter: blur(5px);
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(44, 62, 80, 0.95); color: white; padding: 10px 20px;
+            display: none; align-items: center; justify-content: space-between;
+            box-sizing: border-box; z-index: 1000; backdrop-filter: blur(5px);
         }
         #audio-status { font-size: 0.9rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* 設定モーダル */
         #settings-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 999;
@@ -139,7 +133,7 @@
         </div>
 
         <div class="mode-switch" style="margin-top:10px;">
-            <button class="mode-btn active" onclick="setMode('dictionary')">用語辞典</button>
+            <button class="mode-btn active" onclick="setMode('dictionary')">条文・用語検索</button>
             <button class="mode-btn" onclick="setMode('quiz')">過去問演習</button>
         </div>
 
@@ -150,9 +144,8 @@
                 <option value="民法">民法</option>
                 <option value="行政法">行政法</option>
                 <option value="商法・会社法">商法・会社法</option>
-                <option value="基礎法学">基礎法学</option>
             </select>
-            <input type="text" id="search-box" placeholder="用語を検索..." style="width: 100%; margin-top:10px;" oninput="refreshDict()">
+            <input type="text" id="search-box" placeholder="例: 94, 民法177, 詐欺..." style="width: 100%; margin-top:10px;" oninput="refreshDict()">
             
             <button class="btn-play-all" onclick="startAutoPlay()" style="width:100%; margin-top:10px;">
                 ▶️ リストを連続読み上げ (耳勉)
@@ -166,7 +159,6 @@
                 <option value="民法">民法</option>
                 <option value="行政法">行政法</option>
             </select>
-            
             <div style="display:flex; gap:5px; margin-top:10px;">
                 <select id="quiz-count" style="flex:1;">
                     <option value="1">1問</option>
@@ -175,7 +167,6 @@
                 </select>
                 <button onclick="startQuiz('normal')" style="flex:2;">出題スタート</button>
             </div>
-            
             <button onclick="startQuiz('review')" class="btn-review" style="width:100%; margin-top:10px;">
                 🔥 苦手な問題だけ復習 (<span id="review-count">0</span>問)
             </button>
@@ -192,22 +183,18 @@
     <div id="settings-overlay" onclick="closeSettings()">
         <div id="settings-box" onclick="event.stopPropagation()">
             <h3 style="text-align:center; margin-top:0;">音声設定</h3>
-            
             <div class="setting-row">
-                <label class="setting-label">声の種類 (端末依存)</label>
+                <label class="setting-label">声の種類</label>
                 <select id="voice-select" onchange="testVoice()"></select>
             </div>
-
             <div class="setting-row">
                 <label class="setting-label">話す速さ: <span id="rate-val">1.0</span></label>
                 <input type="range" id="rate-range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettingsDisp()">
             </div>
-
             <div class="setting-row">
                 <label class="setting-label">声の高さ: <span id="pitch-val">1.0</span></label>
                 <input type="range" id="pitch-range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettingsDisp()">
             </div>
-
             <div style="text-align:center;">
                 <button onclick="testVoice()" style="background:var(--info); margin-bottom:10px;">🗣 テスト再生</button><br>
                 <button onclick="closeSettings()">閉じる</button>
@@ -217,39 +204,54 @@
 
     <script>
         function showCompanion() {
-            const list = ["ホットミルク", "コーヒー", "ココア", "チョコ", "深呼吸"];
+            const list = ["ホットミルク", "コーヒー", "ココア", "チョコ", "深呼吸", "おにぎり"];
             alert("今日のお供: " + list[Math.floor(Math.random()*list.length)]);
         }
     </script>
 
 <script>
 // ==========================================
-// 1. データ管理
+// 1. データ管理 (ファイル分割対応版)
 // ==========================================
 let termsData = [];
 let quizData = [];
+let articlesData = []; // ここに民法と行政法を合体させて入れます
 let weakPointIds = [];
 
 // 読み上げ用の変数
 let isAutoPlaying = false;
-let playQueue = []; // 読み上げ対象の要素リスト
+let playQueue = [];
 let currentPlayIndex = 0;
 
 async function loadData() {
     try {
-        const resTerms = await fetch('./terms.json');
+        // 並列で全部読み込みにいく
+        const [resTerms, resQuiz, resMinpo, resGyosei] = await Promise.all([
+            fetch('./terms.json'),
+            fetch('./quiz.json'),
+            fetch('./minpo.json'),
+            fetch('./gyosei.json')
+        ]);
+
         termsData = await resTerms.json();
-        const resQuiz = await fetch('./quiz.json');
         quizData = await resQuiz.json();
         
+        // 民法と行政法のJSONを読み込んで、一つのリストに合体させる！
+        const minpo = await resMinpo.json();
+        const gyosei = await resGyosei.json();
+        articlesData = [...minpo, ...gyosei]; // 合体！
+
         const saved = localStorage.getItem('gyosei_weak_points');
         if (saved) weakPointIds = JSON.parse(saved);
         updateReviewCount();
         
         refreshDict();
-        loadVoices(); // 音声リスト読み込み
+        loadVoices();
+        console.log("全データ読み込み完了！");
+
     } catch (error) {
-        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。</p>';
+        console.error("読み込みエラー:", error);
+        document.getElementById('content-area').innerHTML = '<p>データを読み込めませんでした。JSONファイル(minpo.json, gyosei.json等)が正しく配置されているか確認してください。</p>';
     }
 }
 window.addEventListener('DOMContentLoaded', loadData);
@@ -260,176 +262,156 @@ function updateReviewCount() {
 }
 
 // ==========================================
-// 2. 音声合成 (Web Speech API) & 設定
+// 2. 音声合成 (共通)
 // ==========================================
 let voices = [];
 const synth = window.speechSynthesis;
-
 function loadVoices() {
     voices = synth.getVoices();
     const select = document.getElementById('voice-select');
     select.innerHTML = '';
-    
-    // 日本語の声だけ抽出
     const jaVoices = voices.filter(v => v.lang.includes('ja') || v.lang.includes('JP'));
-    
-    if(jaVoices.length === 0) {
-        select.innerHTML = '<option value="">標準音声</option>';
-    } else {
-        jaVoices.forEach((v, index) => {
-            const option = document.createElement('option');
-            option.value = index; // 配列のインデックスで管理には注意が必要だが簡易的に
-            option.textContent = v.name;
-            select.appendChild(option);
-        });
-    }
+    if(jaVoices.length === 0) select.innerHTML = '<option value="">標準音声</option>';
+    else jaVoices.forEach((v, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx; opt.textContent = v.name; select.appendChild(opt);
+    });
 }
-// ブラウザによってはvoicesの読み込みが遅れるためイベントでも発火
 synth.onvoiceschanged = loadVoices;
 
 function getVoiceSettings() {
     const rate = document.getElementById('rate-range').value;
     const pitch = document.getElementById('pitch-range').value;
     const voiceIndex = document.getElementById('voice-select').selectedIndex;
-    // フィルタ済みのリストを使っているので、元のvoicesから正しく引く必要がある（簡易実装）
-    // 実際には選択されたoptionのテキスト等でvoiceオブジェクトを探すのが確実
     const jaVoices = voices.filter(v => v.lang.includes('ja') || v.lang.includes('JP'));
-    const voice = jaVoices[voiceIndex] || null;
-
-    return { rate, pitch, voice };
+    return { rate, pitch, voice: jaVoices[voiceIndex] };
 }
-
 function updateSettingsDisp() {
     document.getElementById('rate-val').textContent = document.getElementById('rate-range').value;
     document.getElementById('pitch-val').textContent = document.getElementById('pitch-range').value;
 }
-
 function speakText(text, onEndCallback) {
-    // 読み上げ中なら止める
     synth.cancel();
-
-    const uttr = new SpeechSynthesisUtterance(text);
-    const settings = getVoiceSettings();
-    
-    uttr.lang = "ja-JP";
-    uttr.rate = settings.rate;
-    uttr.pitch = settings.pitch;
-    if(settings.voice) uttr.voice = settings.voice;
-
-    if (onEndCallback) {
-        uttr.onend = onEndCallback;
-    }
-
+    const uttr = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, '')); 
+    const s = getVoiceSettings();
+    uttr.lang = "ja-JP"; uttr.rate = s.rate; uttr.pitch = s.pitch;
+    if(s.voice) uttr.voice = s.voice;
+    if (onEndCallback) uttr.onend = onEndCallback;
     synth.speak(uttr);
 }
-
-// 設定画面
 function openSettings() { document.getElementById('settings-overlay').style.display = 'flex'; }
 function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
-function testVoice() { speakText("この声で読み上げます。行政書士試験、合格しましょう。"); }
+function testVoice() { speakText("テスト再生です。"); }
 
 // ==========================================
-// 3. 連続再生 (オートプレイ) ロジック
+// 3. 連続再生
 // ==========================================
 function startAutoPlay() {
-    // 現在画面に表示されているカードを取得
     const cards = document.querySelectorAll('.card');
     if(cards.length === 0) return;
-
-    playQueue = Array.from(cards); // DOM要素を配列化
+    playQueue = Array.from(cards);
     currentPlayIndex = 0;
     isAutoPlaying = true;
-    
     document.getElementById('audio-player-bar').style.display = 'flex';
     playNext();
 }
-
 function playNext() {
-    if(!isAutoPlaying || currentPlayIndex >= playQueue.length) {
-        stopAutoPlay();
-        return;
-    }
-
-    // 前のハイライトを消す
+    if(!isAutoPlaying || currentPlayIndex >= playQueue.length) { stopAutoPlay(); return; }
     playQueue.forEach(c => c.classList.remove('reading'));
-
     const card = playQueue[currentPlayIndex];
-    card.classList.add('reading'); // ハイライト
-    
-    // スクロールして表示（画面外なら）
+    card.classList.add('reading');
     card.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    // 読み上げるテキストを取得（タイトル + 解説）
-    const term = card.querySelector('.term-title').textContent;
-    const desc = card.querySelector('p').textContent;
-    const text = `${term}。${desc}`; // 句点を挟んで間を作る
+    let text = "";
+    if (card.querySelector('.law-text')) {
+        const title = card.querySelector('.term-title').textContent;
+        const body = card.querySelector('.law-text').textContent;
+        text = `${title}。${body}`;
+    } else {
+        const term = card.querySelector('.term-title').textContent;
+        const desc = card.querySelector('p').textContent;
+        text = `${term}。${desc}`;
+    }
 
-    document.getElementById('audio-status').textContent = `▶️ 読み上げ中: ${term}`;
-
-    // 読み上げ実行。終わったら次へ
+    document.getElementById('audio-status').textContent = `▶️ ${card.querySelector('.term-title').textContent}`;
     speakText(text, () => {
         currentPlayIndex++;
-        // 少し間を空けて次へ
         setTimeout(playNext, 1000);
     });
 }
-
 function stopAutoPlay() {
-    isAutoPlaying = false;
-    synth.cancel();
+    isAutoPlaying = false; synth.cancel();
     document.getElementById('audio-player-bar').style.display = 'none';
     if(playQueue) playQueue.forEach(c => c.classList.remove('reading'));
 }
 
-
 // ==========================================
-// 4. アプリ機能 (Dictionary / Quiz)
+// 4. 検索機能 (民法・行政法JSON対応版)
 // ==========================================
 let currentMode = 'dictionary';
-
 function setMode(mode) {
-    currentMode = mode;
-    stopAutoPlay(); // モード切替時に再生停止
-
+    currentMode = mode; stopAutoPlay();
     const btns = document.querySelectorAll('.mode-btn');
-    const dictCtrl = document.getElementById('dict-controls');
-    const quizCtrl = document.getElementById('quiz-controls');
-
     if(mode === 'dictionary') {
         btns[0].classList.add('active'); btns[1].classList.remove('active');
-        dictCtrl.style.display = 'block'; quizCtrl.style.display = 'none';
+        document.getElementById('dict-controls').style.display = 'block';
+        document.getElementById('quiz-controls').style.display = 'none';
         refreshDict();
     } else {
         btns[0].classList.remove('active'); btns[1].classList.add('active');
-        dictCtrl.style.display = 'none'; quizCtrl.style.display = 'block';
+        document.getElementById('dict-controls').style.display = 'none';
+        document.getElementById('quiz-controls').style.display = 'block';
         document.getElementById('content-area').innerHTML = '<p style="text-align:center;">条件を選んでスタート</p>';
     }
 }
 
 function refreshDict() {
     const subject = document.getElementById('subject-select-dict').value;
-    const keyword = document.getElementById('search-box').value.toLowerCase();
+    const rawKey = document.getElementById('search-box').value;
+    const keyword = rawKey.toLowerCase().trim();
     const container = document.getElementById('content-area');
     container.innerHTML = '';
 
-    const filtered = termsData.filter(item => {
+    // ① 条文検索 (数字が含まれていれば条文モードと判断)
+    const isLawSearch = /\d/.test(keyword); 
+
+    if (isLawSearch) {
+        // articlesData（民法と行政法の合体データ）から検索
+        const filteredLaws = articlesData.filter(item => {
+            const matchSubject = subject === 'all' || item.subject.includes(subject) || (subject === '行政法' && (item.subject === '行政手続法' || item.subject === '行政不服審査法'));
+            
+            // 科目名+条数 で検索できるようにする
+            const searchTarget = item.subject + item.number; 
+            return matchSubject && searchTarget.includes(keyword);
+        });
+
+        filteredLaws.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="subject-badge">${item.subject} 第${item.number}条</span>
+                    <button class="btn-speak-icon" onclick="speakText('${item.subject}第${item.number}条、${item.title}。${item.text}')">🔈</button>
+                </div>
+                <div class="term-title">${item.subject} ${item.number}条: ${item.title}</div>
+                <div class="law-text">${item.text}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // ② 用語検索
+    const filteredTerms = termsData.filter(item => {
         const matchSubject = subject === 'all' || item.subject === subject;
         const matchKey = item.term.toLowerCase().includes(keyword) || item.desc.toLowerCase().includes(keyword);
         return matchSubject && matchKey;
     });
 
-    if(filtered.length === 0) {
-        container.innerHTML = '<p>該当なし</p>';
-        return;
-    }
-
-    filtered.forEach(item => {
+    filteredTerms.forEach(item => {
         let detailHtml = '';
         if (item.detail) detailHtml = `<div class="legal-detail show"><strong>【条文】</strong> ${item.detail.article}<br><strong>【判例等】</strong> ${item.detail.case}</div>`;
-        
         const card = document.createElement('div');
         card.className = 'card';
-        // 単発再生ボタンも残す
         card.innerHTML = `
             <div class="card-header">
                 <span class="subject-badge">${item.subject}</span>
@@ -441,18 +423,18 @@ function refreshDict() {
         `;
         container.appendChild(card);
     });
+
+    if (container.innerHTML === '') {
+        container.innerHTML = '<p>該当する条文・用語が見つかりません。</p>';
+    }
 }
 
-// クイズ機能（省略なし）
+// クイズ機能
 function startQuiz(type) {
-    const container = document.getElementById('content-area');
-    container.innerHTML = '';
+    const container = document.getElementById('content-area'); container.innerHTML = '';
     let candidates = [];
-
     if (type === 'review') {
-        if (weakPointIds.length === 0) {
-            container.innerHTML = '<p style="text-align:center;">復習リストは空です👏</p>'; return;
-        }
+        if (weakPointIds.length === 0) { container.innerHTML = '<p style="text-align:center;">復習リストは空です👏</p>'; return; }
         candidates = quizData.filter(q => weakPointIds.includes(q.id));
     } else {
         const subject = document.getElementById('subject-select-quiz').value;
@@ -460,64 +442,27 @@ function startQuiz(type) {
         candidates = quizData.filter(q => subject === 'all' || q.subject === subject);
         candidates = candidates.sort(() => Math.random() - 0.5).slice(0, count);
     }
-
-    if(candidates.length === 0) { container.innerHTML = '<p>問題がありません</p>'; return; }
-
     candidates.forEach((q, index) => {
-        const card = document.createElement('div');
-        card.className = 'card';
+        const card = document.createElement('div'); card.className = 'card';
         let optionsHtml = '';
-        q.options.forEach((opt, idx) => {
-            optionsHtml += `<button onclick="checkAnswer(this, ${q.id}, ${idx})">${idx + 1}. ${opt}</button>`;
-        });
+        q.options.forEach((opt, idx) => { optionsHtml += `<button onclick="checkAnswer(this, ${q.id}, ${idx})">${idx + 1}. ${opt}</button>`; });
         const isWeak = weakPointIds.includes(q.id);
         const checkText = isWeak ? '✔ 復習リスト入り' : '復習リストに追加';
         const checkColor = isWeak ? 'color:var(--danger);font-weight:bold;' : 'color:#888;';
-
-        card.innerHTML = `
-            <div class="card-header">
-                <span class="subject-badge">第${index + 1}問</span>
-                <span style="cursor:pointer; ${checkColor}" onclick="toggleWeakPoint(${q.id}, this)">${checkText}</span>
-            </div>
-            <p style="font-weight:bold;">${q.question}</p>
-            <div class="quiz-options" id="options-${q.id}">${optionsHtml}</div>
-            <div class="result-msg" id="result-${q.id}"></div>
-        `;
+        card.innerHTML = `<div class="card-header"><span class="subject-badge">第${index + 1}問</span><span style="cursor:pointer; ${checkColor}" onclick="toggleWeakPoint(${q.id}, this)">${checkText}</span></div><p style="font-weight:bold;">${q.question}</p><div class="quiz-options" id="options-${q.id}">${optionsHtml}</div><div class="result-msg" id="result-${q.id}"></div>`;
         container.appendChild(card);
     });
 }
-
 function checkAnswer(btn, qId, userIdx) {
-    const qData = quizData.find(q => q.id === qId);
-    const resultDiv = document.getElementById(`result-${qId}`);
-    const parent = document.getElementById(`options-${qId}`);
+    const qData = quizData.find(q => q.id === qId); const resultDiv = document.getElementById(`result-${qId}`); const parent = document.getElementById(`options-${qId}`);
     parent.querySelectorAll('button').forEach(b => b.disabled = true);
-
-    if(userIdx === qData.answer) {
-        btn.style.background = '#d4edda';
-        resultDiv.innerHTML = `<span class="correct">正解！⭕️</span><br>${qData.explanation}`;
-    } else {
-        btn.style.background = '#f8d7da';
-        parent.querySelectorAll('button')[qData.answer].style.background = '#d4edda';
-        resultDiv.innerHTML = `<span class="incorrect">残念...❌</span><br>${qData.explanation}`;
-        addWeakPoint(qId);
-    }
+    if(userIdx === qData.answer) { btn.style.background = '#d4edda'; resultDiv.innerHTML = `<span class="correct">正解！⭕️</span><br>${qData.explanation}`; }
+    else { btn.style.background = '#f8d7da'; parent.querySelectorAll('button')[qData.answer].style.background = '#d4edda'; resultDiv.innerHTML = `<span class="incorrect">残念...❌</span><br>${qData.explanation}`; addWeakPoint(qId); }
 }
-
-function addWeakPoint(id) {
-    if (!weakPointIds.includes(id)) {
-        weakPointIds.push(id);
-        localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
-    }
-}
+function addWeakPoint(id) { if (!weakPointIds.includes(id)) { weakPointIds.push(id); localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds)); } }
 function toggleWeakPoint(id, el) {
-    if (weakPointIds.includes(id)) {
-        weakPointIds = weakPointIds.filter(wid => wid !== id);
-        el.textContent = '復習リストに追加'; el.style.color = '#888'; el.style.fontWeight = 'normal';
-    } else {
-        weakPointIds.push(id);
-        el.textContent = '✔ 復習リスト入り'; el.style.color = 'var(--danger)'; el.style.fontWeight = 'bold';
-    }
+    if (weakPointIds.includes(id)) { weakPointIds = weakPointIds.filter(wid => wid !== id); el.textContent = '復習リストに追加'; el.style.color = '#888'; el.style.fontWeight = 'normal'; }
+    else { weakPointIds.push(id); el.textContent = '✔ 復習リスト入り'; el.style.color = 'var(--danger)'; el.style.fontWeight = 'bold'; }
     localStorage.setItem('gyosei_weak_points', JSON.stringify(weakPointIds));
 }
 </script>
